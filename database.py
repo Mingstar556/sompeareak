@@ -19,7 +19,8 @@ DEFAULT_SETTINGS = {
     'custom_pt': 5,
     'site_logo': 'logo.jpg',
     'charms': json.dumps(['❤️','⭐','🌸','🦋','🐱','🍀','🌙','☀️','💎','🎀','🐶','🌈','⚽','🎵','🇰🇭','🔤','⚡','👑']),
-    'announcement': '✨ Welcome to Somphea Reak Studio • Verified Telegram Orders • Earn Points on Every Item!'
+    'announcement': '✨ Welcome to Somphea Reak Studio • Verified Telegram Orders • Earn Points on Every Item!',
+    'seller_telegram': 'sompheareak'
 }
 
 DEFAULT_CATEGORIES = [

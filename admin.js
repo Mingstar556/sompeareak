@@ -57,17 +57,98 @@ function playNotificationSound() {
   } catch (e) {}
 }
 
-/* Theme sync */
+/* Theme sync with circular reveal transition */
 const sess = JSON.parse(localStorage.getItem('sr_session') || '{}');
 let theme = sess.theme || 'dark';
 const applyTheme = () => {
   document.documentElement.dataset.theme = theme;
 };
-const toggleTheme = () => {
-  theme = theme === 'dark' ? 'light' : 'dark';
-  sess.theme = theme;
-  localStorage.setItem('sr_session', JSON.stringify(sess));
-  applyTheme();
+let adminThemeTransitioning = false;
+const toggleTheme = (e) => {
+  if (adminThemeTransitioning) return;
+  const nextTheme = theme === 'dark' ? 'light' : 'dark';
+
+  const btn = $('#themeSwitch');
+  let x = window.innerWidth / 2;
+  let y = 40;
+  if (btn) {
+    const rect = btn.getBoundingClientRect();
+    x = rect.left + rect.width / 2;
+    y = rect.top + rect.height / 2;
+  } else if (e && e.clientX) {
+    x = e.clientX;
+    y = e.clientY;
+  }
+
+  const endRadius = Math.hypot(
+    Math.max(x, window.innerWidth - x),
+    Math.max(y, window.innerHeight - y)
+  );
+
+  const applyNewTheme = () => {
+    theme = nextTheme;
+    sess.theme = theme;
+    localStorage.setItem('sr_session', JSON.stringify(sess));
+    applyTheme();
+  };
+
+  if (document.startViewTransition && !window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+    adminThemeTransitioning = true;
+    const transition = document.startViewTransition(() => {
+      applyNewTheme();
+    });
+    transition.ready.then(() => {
+      const anim = document.documentElement.animate(
+        {
+          clipPath: [
+            `circle(0px at ${x}px ${y}px)`,
+            `circle(${endRadius}px at ${x}px ${y}px)`
+          ]
+        },
+        {
+          duration: 560,
+          easing: 'cubic-bezier(0.22, 1, 0.36, 1)',
+          pseudoElement: '::view-transition-new(root)'
+        }
+      );
+      anim.onfinish = () => {
+        adminThemeTransitioning = false;
+      };
+    }).catch(() => {
+      adminThemeTransitioning = false;
+    });
+  } else {
+    adminThemeTransitioning = true;
+    let overlay = document.getElementById('themeWaveOverlay');
+    if (!overlay) {
+      overlay = document.createElement('div');
+      overlay.id = 'themeWaveOverlay';
+      overlay.className = 'theme-wave-circle';
+      document.body.appendChild(overlay);
+    }
+    overlay.style.backgroundColor = nextTheme === 'light' ? '#eaedf2' : '#0c0e17';
+    overlay.style.display = 'block';
+    overlay.style.clipPath = `circle(0px at ${x}px ${y}px)`;
+
+    const anim = overlay.animate(
+      [
+        { clipPath: `circle(0px at ${x}px ${y}px)` },
+        { clipPath: `circle(${endRadius}px at ${x}px ${y}px)` }
+      ],
+      {
+        duration: 500,
+        easing: 'cubic-bezier(0.22, 1, 0.36, 1)'
+      }
+    );
+    anim.onfinish = () => {
+      applyNewTheme();
+      overlay.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 160 }).onfinish = () => {
+        overlay.style.display = 'none';
+        overlay.style.opacity = '1';
+        adminThemeTransitioning = false;
+      };
+    };
+  }
 };
 const themeSwitchEl = $('#themeSwitch') || $('#themeBtn');
 if (themeSwitchEl) themeSwitchEl.onclick = toggleTheme;
@@ -1398,6 +1479,9 @@ function settings() {
       <div class="full">
         ${f('announcement', 'Announcement Bar Message (Top of Site)', 'text', 'Displayed at the top of the store')}
       </div>
+      <div class="full">
+        ${f('sellerTelegram', 'Seller Telegram Username / Link', 'text', 'Telegram username or link for Customer Service button (e.g. sompheareak)')}
+      </div>
     </div>
 
     <br><h3>Pricing & Loyalty Economics</h3>
@@ -1511,6 +1595,7 @@ async function saveSettings() {
   if (patch.customBasePrice !== undefined) patch.custom_base_price = patch.customBasePrice;
   if (patch.charmPrice !== undefined) patch.charm_price = patch.charmPrice;
   if (patch.customPt !== undefined) patch.custom_pt = patch.customPt;
+  if (patch.sellerTelegram) patch.seller_telegram = patch.sellerTelegram;
 
   await SRDB.saveSettings(patch);
   applyLogo();

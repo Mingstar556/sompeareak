@@ -2,7 +2,7 @@
 <html lang="km" data-theme="dark">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
   <title>Somphea Reak | Premium Studio</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -113,25 +113,43 @@
         </div>
       </a>
 
-      <!-- Right: Theme Switch + Cart Button (Circular with Badge) -->
+      <!-- Right: Desktop nav items + Language & Theme Switchers + Cart -->
       <div class="topbar-right">
-        <!-- Bilingual Switcher (visible on desktop/tablet) -->
-        <div class="lang-switch header-lang-switch" id="topLangSwitch" data-lang="km">
-          <button class="lang-btn active" id="langKmBtn" type="button" onclick="setLang('km')" title="ប្តូរទៅភាសាខ្មែរ">🇰🇭 ខ្មែរ</button>
-          <button class="lang-btn" id="langEnBtn" type="button" onclick="setLang('en')" title="Switch to English">🇬🇧 EN</button>
-          <span class="lang-slider"></span>
-        </div>
-
         <button class="pill points-pill header-points-pill" data-nav="rewards" id="navRewardsBtn" title="My points">⭐ <span id="ptCount">0</span> pt</button>
         <button class="topbar-circle-btn header-orders-btn" data-nav="orders" id="navOrdersBtn" title="My orders">📦</button>
 
-        <!-- Animated Theme Switch Button (Sun / Moon) -->
-        <button class="theme-switch" id="themeSwitch" type="button" aria-label="Toggle dark/light theme" title="Toggle dark/light mode">
-          <span class="switch-knob">
-            <span class="moon-icon">🌙</span>
-            <span class="sun-icon">☀️</span>
-          </span>
-        </button>
+        <!-- Switchers Group: KH/EN Language Switch right next to Dark/Light Mode Switch -->
+        <div class="header-controls-cluster">
+          <div class="lang-switch header-lang-switch" id="topLangSwitch" data-lang="km">
+            <button class="lang-btn active" id="langKmBtn" type="button" onclick="setLang('km')" title="ប្តូរទៅភាសាខ្មែរ">🇰🇭 <span class="lang-txt">ខ្មែរ</span></button>
+            <button class="lang-btn" id="langEnBtn" type="button" onclick="setLang('en')" title="Switch to English">🇬🇧 <span class="lang-txt">EN</span></button>
+            <span class="lang-slider"></span>
+          </div>
+
+          <!-- Animated Liquid Theme Switch Button (Sun / Moon) -->
+          <button class="theme-switch" id="themeSwitch" type="button" aria-label="Toggle dark/light theme" title="Toggle dark/light mode">
+            <span class="switch-knob">
+              <span class="moon-icon" aria-hidden="true">
+                <svg class="moon-svg" viewBox="0 0 24 24" width="14" height="14" fill="currentColor">
+                  <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+                </svg>
+              </span>
+              <span class="sun-icon" aria-hidden="true">
+                <svg class="sun-svg" viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round">
+                  <circle cx="12" cy="12" r="4.2" fill="currentColor"/>
+                  <line x1="12" y1="1.5" x2="12" y2="3.8"/>
+                  <line x1="12" y1="20.2" x2="12" y2="22.5"/>
+                  <line x1="4.5" y1="4.5" x2="6.2" y2="6.2"/>
+                  <line x1="17.8" y1="17.8" x2="19.5" y2="19.5"/>
+                  <line x1="1.5" y1="12" x2="3.8" y2="12"/>
+                  <line x1="20.2" y1="12" x2="22.5" y2="12"/>
+                  <line x1="4.5" y1="19.5" x2="6.2" y2="17.8"/>
+                  <line x1="17.8" y1="6.2" x2="19.5" y2="4.5"/>
+                </svg>
+              </span>
+            </span>
+          </button>
+        </div>
 
         <!-- Cart Button with Orange Badge -->
         <button class="topbar-circle-btn cart-circle-btn" data-nav="cart" id="navCartBtn" title="Shopping Cart" aria-label="Shopping Cart">

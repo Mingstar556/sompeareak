@@ -29,6 +29,8 @@ const SRDB = (() => {
       customPt: 5,
       charms: ['❤️','⭐','🌸','🦋','🐱','🍀','🌙','☀️','💎','🎀','🐶','🌈','⚽','🎵','🇰🇭','🔤','⚡','👑'],
       announcement: '✨ Welcome to Somphea Reak Studio • Verified Telegram Orders • Earn Points on Every Item!',
+      seller_telegram: 'sompheareak',
+      sellerTelegram: 'sompheareak',
     },
     categories: [
       { id: 'custom-bracelet', name: 'Custom Italy Charm', kh: 'CUSTOMIZE ITALY CHARM', en: 'Build your own charm bracelet', icon: '🔗', grad: 'linear-gradient(135deg,#d4af37,#8b5cf6)', sort_order: 0 },

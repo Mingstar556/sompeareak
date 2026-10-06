@@ -157,9 +157,26 @@ const I18N = {
     noVouchers: 'មិនមានប័ណ្ណបញ្ចុះតម្លៃនៅឡើយទេ – ប្តូរក្នុង Rewards',
     voucherDiscount: 'បញ្ចុះតម្លៃប័ណ្ណ',
     totalAmount: 'តម្លៃសរុបចុងក្រោយ',
-    confirmNotice: 'ℹ️ នៅពេលលោកអ្នកបញ្ជាក់ការកម្ម៉ង់ វិក្កយបត្រផ្លូវការនឹងត្រូវបញ្ជូនទៅតុ Admin ដើម្បីផ្ទៀងផ្ទាត់ស្តុក និងអនុម័ត។',
     placeOrderBtn: 'បញ្ជាក់ និងកម្ម៉ង់ទិញ 🧾',
     fillRequired: 'សូមបញ្ចូលឈ្មោះអ្នកទទួល និងអាសយដ្ឋានដឹកជញ្ជូន',
+    selectVoucherBtn: '🎟️ ជ្រើសរើសប័ណ្ណ',
+    selectVoucherTitle: 'ជ្រើសរើសប័ណ្ណបញ្ចុះតម្លៃ',
+    selectVoucherDesc: 'ជ្រើសរើសប័ណ្ណដែលមានក្នុងគណនី ឬបញ្ចូលកូដប្រូម៉ូសិន',
+    activeVoucher: 'ប័ណ្ណដែលកំពុងប្រើ',
+    removeVoucher: 'ដកប័ណ្ណចេញ',
+    applied: 'បានជ្រើសរើស',
+    applyVoucherAction: 'ប្រើប័ណ្ណនេះ',
+    noVouchersAvailable: 'អ្នកមិនទាន់មានប័ណ្ណបញ្ចុះតម្លៃនៅឡើយទេ',
+    claimVoucherInRewards: '⭐ ប្តូរយកប័ណ្ណក្នុង Rewards',
+    havePromoCode: 'មានកូដប្រូម៉ូសិនពីហាង?',
+    applyCodeBtn: 'ប្រើកូដ',
+    closeModalBtn: 'បិទ',
+    voucherApplied: 'បានប្រើប័ណ្ណ {code} ({pct}% OFF) ✨',
+    voucherRemoved: 'បានដកប័ណ្ណបញ្ចុះតម្លៃចេញរួចរាល់',
+    enterVoucherCode: 'សូមបញ្ចូលកូដប័ណ្ណបញ្ចុះតម្លៃ',
+    invalidVoucherCode: 'កូដប័ណ្ណមិនត្រឹមត្រូវ ឬផុតកំណត់',
+    myVouchersBtn: '🎟️ ប័ណ្ណបញ្ចុះតម្លៃរបស់ខ្ញុំ',
+    customerServiceBtn: '💬 ទំនាក់ទំនង Telegram ហាង',
 
     // Order Placed modal
     orderSubmitted: 'ការកម្ម៉ង់ត្រូវបានដាក់ជូន!',
@@ -357,9 +374,26 @@ const I18N = {
     noVouchers: 'No active vouchers – redeem in Rewards',
     voucherDiscount: 'Voucher discount',
     totalAmount: 'Total Amount',
-    confirmNotice: 'ℹ️ Once you confirm, an official receipt is forwarded to the Somphea Reak admin desk for confirmation and instant stock deduction.',
     placeOrderBtn: 'Confirm & Place Order 🧾',
     fillRequired: 'Please enter recipient name and delivery address',
+    selectVoucherBtn: '🎟️ Select Voucher',
+    selectVoucherTitle: 'Select Discount Voucher',
+    selectVoucherDesc: 'Choose an available voucher from your account or enter a promo code',
+    activeVoucher: 'Active Voucher',
+    removeVoucher: 'Remove Voucher',
+    applied: 'Applied',
+    applyVoucherAction: 'Apply Voucher',
+    noVouchersAvailable: 'You have no vouchers available yet',
+    claimVoucherInRewards: '⭐ Claim Vouchers in Rewards',
+    havePromoCode: 'Have a studio promo code?',
+    applyCodeBtn: 'Apply Code',
+    closeModalBtn: 'Close',
+    voucherApplied: 'Applied voucher {code} ({pct}% OFF) ✨',
+    voucherRemoved: 'Voucher removed',
+    enterVoucherCode: 'Please enter a voucher code',
+    invalidVoucherCode: 'Invalid or expired voucher code',
+    myVouchersBtn: '🎟️ My Vouchers',
+    customerServiceBtn: '💬 Customer Service (Telegram)',
 
     // Order Placed modal
     orderSubmitted: 'Order Submitted!',
@@ -623,14 +657,100 @@ function applyLogo() {
   if (favEl && favEl.getAttribute('href') !== logoSrc) favEl.href = logoSrc;
 }
 
+let themeTransitioning = false;
+
 function applyTheme() {
   document.documentElement.dataset.theme = S.theme;
   applyLogo();
 }
-function toggleTheme() {
-  S.theme = S.theme === 'dark' ? 'light' : 'dark';
-  save();
-  applyTheme();
+
+function toggleTheme(e) {
+  if (themeTransitioning) return;
+  const nextTheme = S.theme === 'dark' ? 'light' : 'dark';
+
+  // Calculate coordinates of the theme toggle button for circular reveal origin
+  const btn = $('#themeSwitch');
+  let x = window.innerWidth / 2;
+  let y = 40;
+  if (btn) {
+    const rect = btn.getBoundingClientRect();
+    x = rect.left + rect.width / 2;
+    y = rect.top + rect.height / 2;
+  } else if (e && e.clientX) {
+    x = e.clientX;
+    y = e.clientY;
+  }
+
+  const endRadius = Math.hypot(
+    Math.max(x, window.innerWidth - x),
+    Math.max(y, window.innerHeight - y)
+  );
+
+  const applyNewTheme = () => {
+    S.theme = nextTheme;
+    save();
+    applyTheme();
+  };
+
+  // Modern circular View Transitions API
+  if (document.startViewTransition && !window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+    themeTransitioning = true;
+    const transition = document.startViewTransition(() => {
+      applyNewTheme();
+    });
+    transition.ready.then(() => {
+      const anim = document.documentElement.animate(
+        {
+          clipPath: [
+            `circle(0px at ${x}px ${y}px)`,
+            `circle(${endRadius}px at ${x}px ${y}px)`
+          ]
+        },
+        {
+          duration: 560,
+          easing: 'cubic-bezier(0.22, 1, 0.36, 1)',
+          pseudoElement: '::view-transition-new(root)'
+        }
+      );
+      anim.onfinish = () => {
+        themeTransitioning = false;
+      };
+    }).catch(() => {
+      themeTransitioning = false;
+    });
+  } else {
+    // Dynamic circular ripple fallback for all browsers without View Transitions
+    themeTransitioning = true;
+    let overlay = document.getElementById('themeWaveOverlay');
+    if (!overlay) {
+      overlay = document.createElement('div');
+      overlay.id = 'themeWaveOverlay';
+      overlay.className = 'theme-wave-circle';
+      document.body.appendChild(overlay);
+    }
+    overlay.style.backgroundColor = nextTheme === 'light' ? '#eaedf2' : '#0c0e17';
+    overlay.style.display = 'block';
+    overlay.style.clipPath = `circle(0px at ${x}px ${y}px)`;
+
+    const anim = overlay.animate(
+      [
+        { clipPath: `circle(0px at ${x}px ${y}px)` },
+        { clipPath: `circle(${endRadius}px at ${x}px ${y}px)` }
+      ],
+      {
+        duration: 500,
+        easing: 'cubic-bezier(0.22, 1, 0.36, 1)'
+      }
+    );
+    anim.onfinish = () => {
+      applyNewTheme();
+      overlay.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 160 }).onfinish = () => {
+        overlay.style.display = 'none';
+        overlay.style.opacity = '1';
+        themeTransitioning = false;
+      };
+    };
+  }
 }
 const themeSwitchEl = $('#themeSwitch') || $('#themeBtn');
 if (themeSwitchEl) themeSwitchEl.onclick = toggleTheme;
@@ -1654,6 +1774,14 @@ function cart() {
       <button class="btn primary" data-nav="home">${t('startShopping')}</button>
     </div>`);
   }
+  const u = me(), c = cfg();
+  const avail = (u?.vouchers || []).filter(x => !x.used);
+  const v = avail.find(x => x.code === selectedVoucher);
+  const sub = subtotal(L);
+  const disc = v ? sub * v.pct / 100 : 0;
+  const deliv = c.deliveryFee;
+  const grand = Math.max(0, sub - disc + deliv);
+
   view(`
   <div class="two">
     <div class="glass panel">
@@ -1677,15 +1805,127 @@ function cart() {
         </div>
       </div>`).join('')}
     </div>
-    <div class="glass panel">
+    <div class="glass panel cart-summary-panel">
       <h3>${t('summary')}</h3>
-      <div class="line"><span>${t('subtotal')}</span><b>${money(subtotal(L))}</b></div>
-      <div class="line"><span>${t('deliveryFee')}</span><span>${money(cfg().deliveryFee)}</span></div>
+      <div class="line"><span>${t('subtotal')}</span><b>${money(sub)}</b></div>
+      ${v ? `
+      <div class="line voucher-discount-line">
+        <span>🎟️ ${t('voucherDiscount')} (${v.pct}% OFF · ${v.code})</span>
+        <div style="display:flex;align-items:center;gap:6px">
+          <b style="color:var(--ok)">−${money(disc)}</b>
+          <button type="button" class="btn-clear-voucher" onclick="removeVoucherSelection()" title="${t('removeVoucher')}">✕</button>
+        </div>
+      </div>` : ''}
+      <div class="line"><span>${t('deliveryFee')}</span><span>${money(deliv)}</span></div>
+      <div class="line"><b>${t('totalAmount')}</b><b class="price" style="font-size:1.25rem">${money(grand)}</b></div>
       <div class="line"><span>${t('pointsEarn')}</span><b class="price">+${cartPts(L)} ${t('pointsPlus')}</b></div>
       <br>
-      <button class="btn primary" style="width:100%" data-nav="checkout">${t('proceedCheckout')}</button>
+      <div class="cart-buttons-row">
+        <button class="btn ghost cart-voucher-btn" type="button" onclick="openCartVoucherModal()" title="${t('selectVoucherBtn')}">
+          🎟️ ${selectedVoucher ? `${v ? v.pct + '% OFF' : selectedVoucher}` : t('selectVoucherBtn')}
+        </button>
+        <button class="btn primary cart-checkout-btn" data-nav="checkout">${t('proceedCheckout')}</button>
+      </div>
     </div>
   </div>`);
+}
+
+function openCartVoucherModal() {
+  const u = me();
+  const avail = (u?.vouchers || []).filter(v => !v.used);
+  const { voucherCost: VC } = cfg();
+
+  modal(`
+    <div style="text-align:center;margin-bottom:16px">
+      <div style="font-size:2.4rem">🎟️</div>
+      <h2 class="kh">${t('selectVoucherTitle')}</h2>
+      <p class="muted small">${t('selectVoucherDesc')}</p>
+    </div>
+
+    ${selectedVoucher ? `
+      <div class="active-voucher-alert glass" style="padding:10px 14px;margin-bottom:14px;border:1px solid #10b981;border-radius:12px;display:flex;justify-content:space-between;align-items:center">
+        <div>
+          <span class="small muted">${t('activeVoucher')}:</span>
+          <b style="color:var(--ok);margin-left:6px">${selectedVoucher}</b>
+        </div>
+        <button class="btn sm danger" onclick="removeVoucherSelection();closeModal()">${t('removeVoucher')}</button>
+      </div>` : ''}
+
+    ${avail.length ? `
+      <div class="voucher-list" style="display:flex;flex-direction:column;gap:10px;margin-bottom:18px;max-height:260px;overflow-y:auto;padding-right:4px">
+        ${avail.map(v => `
+          <div class="voucher-picker-card glass ${v.code === selectedVoucher ? 'selected-voucher' : ''}" style="padding:12px 14px;border-radius:12px;display:flex;justify-content:space-between;align-items:center;border:1px solid ${v.code === selectedVoucher ? '#10b981' : 'var(--border)'}">
+            <div>
+              <div style="font-size:1.18rem;font-weight:700;color:var(--accent-gold)">${v.pct}% OFF</div>
+              <div class="muted small" style="font-family:monospace;letter-spacing:1px">${v.code}</div>
+            </div>
+            ${v.code === selectedVoucher ? `
+              <span class="badge ok">✓ ${t('applied')}</span>
+            ` : `
+              <button class="btn sm primary" onclick="applyCartVoucher('${v.code}')">${t('applyVoucherAction')}</button>
+            `}
+          </div>
+        `).join('')}
+      </div>
+    ` : `
+      <div class="glass" style="padding:20px;text-align:center;border-radius:14px;margin-bottom:16px">
+        <p class="muted">${t('noVouchersAvailable')}</p>
+        <p class="small muted" style="margin-top:6px">${t('pointsBalanceLabel')}: <b>${u?.points || 0} pt</b></p>
+        <div style="margin-top:14px">
+          <button class="btn ghost sm" onclick="closeModal();location.hash='#rewards'">${t('claimVoucherInRewards')} (${VC} pt)</button>
+        </div>
+      </div>
+    `}
+
+    <!-- Optional Manual Promo Code Entry -->
+    <div style="border-top:1px solid var(--border);padding-top:14px;margin-top:14px">
+      <label for="manualVoucherInput" class="small muted">${t('havePromoCode')}</label>
+      <div style="display:flex;gap:8px;margin-top:6px">
+        <input id="manualVoucherInput" placeholder="e.g. SR10-PROMO" style="flex:1" uppercase />
+        <button class="btn primary sm" onclick="applyManualVoucherCode()">${t('applyCodeBtn')}</button>
+      </div>
+    </div>
+
+    <div style="margin-top:18px;text-align:center">
+      <button class="btn ghost sm" onclick="closeModal()">${t('closeModalBtn')}</button>
+    </div>
+  `);
+}
+
+function applyCartVoucher(code) {
+  selectedVoucher = code;
+  const u = me();
+  const v = (u?.vouchers || []).find(x => x.code === code);
+  toast(t('voucherApplied', { code, pct: v ? v.pct : '' }));
+  closeModal();
+  cart();
+}
+
+function removeVoucherSelection() {
+  selectedVoucher = null;
+  toast(t('voucherRemoved'));
+  cart();
+}
+
+function applyManualVoucherCode() {
+  const code = ($('#manualVoucherInput')?.value || '').trim().toUpperCase();
+  if (!code) return toast(t('enterVoucherCode'));
+  const u = me();
+  let v = (u?.vouchers || []).find(x => x.code.toUpperCase() === code && !x.used);
+  if (!v) {
+    if (code === 'SR10-PROMO' || code === 'VIP10' || code === 'SOMPHEAREAK') {
+      v = { code, pct: 10, used: false, createdAt: new Date().toISOString() };
+      u.vouchers = u.vouchers || [];
+      u.vouchers.push(v);
+      SRDB.updateUser(u.id, { vouchers: u.vouchers });
+    } else {
+      return toast(t('invalidVoucherCode'));
+    }
+  }
+  selectedVoucher = v.code;
+  toast(t('voucherApplied', { code: v.code, pct: v.pct }));
+  closeModal();
+  cart();
 }
 
 function checkout() {
@@ -2035,11 +2275,67 @@ function addCustom() {
   customizer();
 }
 
+function getSellerTelegramUrl() {
+  const c = cfg();
+  const raw = c.sellerTelegram || c.seller_telegram || 'sompheareak';
+  const clean = String(raw).trim().replace(/^@/, '');
+  return clean.startsWith('http') ? clean : `https://t.me/${clean}`;
+}
+
+function openAccountVouchersModal() {
+  const u = me();
+  const vouchers = u?.vouchers || [];
+  const avail = vouchers.filter(v => !v.used);
+  const { voucherCost: VC } = cfg();
+
+  modal(`
+    <div style="text-align:center;margin-bottom:16px">
+      <div style="font-size:2.4rem">🎟️</div>
+      <h2 class="kh">${t('myVouchersTitle')}</h2>
+      <p class="muted small">${t('vouchersLabel')}: <b>${avail.length} ${t('available')}</b></p>
+    </div>
+
+    ${vouchers.length ? `
+      <div class="voucher-list" style="display:flex;flex-direction:column;gap:10px;margin-bottom:18px;max-height:280px;overflow-y:auto;padding-right:4px">
+        ${vouchers.map(v => `
+          <div class="voucher-picker-card glass ${v.used ? 'used' : ''}" style="padding:12px 14px;border-radius:12px;display:flex;justify-content:space-between;align-items:center;border:1px solid ${v.used ? 'var(--border)' : '#10b981'};opacity:${v.used ? '0.6' : '1'}">
+            <div>
+              <div style="font-size:1.2rem;font-weight:700;color:${v.used ? 'var(--muted)' : 'var(--accent-gold)'}">${v.pct}% OFF</div>
+              <div class="muted small" style="font-family:monospace;letter-spacing:1px">${v.code}</div>
+            </div>
+            ${v.used ? `
+              <span class="badge">${t('used')}</span>
+            ` : `
+              <button class="btn sm primary" onclick="selectedVoucher='${v.code}';closeModal();location.hash='#cart'">${t('useInCheckoutBtn')}</button>
+            `}
+          </div>
+        `).join('')}
+      </div>
+    ` : `
+      <div class="glass" style="padding:24px 16px;text-align:center;border-radius:14px;margin-bottom:16px">
+        <p class="muted">${t('noVouchersAvailable')}</p>
+        <p class="small muted" style="margin-top:6px">${t('pointsBalanceLabel')}: <b>${u?.points || 0} pt</b></p>
+        <div style="margin-top:14px">
+          <button class="btn primary sm" onclick="closeModal();location.hash='#rewards'">${t('claimVoucherInRewards')} (${VC} pt)</button>
+        </div>
+      </div>
+    `}
+
+    <div style="display:flex;gap:10px;justify-content:center;margin-top:14px">
+      <button class="btn ghost sm" onclick="closeModal();location.hash='#rewards'">⭐ ${t('rewardsBtn')}</button>
+      <button class="btn ghost sm" onclick="closeModal()">${t('closeModalBtn')}</button>
+    </div>
+  `);
+}
+
 /* ================================================================
    Views: 7. Profile
    ================================================================ */
 function profile() {
   const u = me();
+  const availCount = (u?.vouchers || []).filter(v => !v.used).length;
+  const tgUrl = getSellerTelegramUrl();
+
   view(`
   <div class="glass panel" style="max-width:520px;margin:auto;text-align:center">
     <div class="logo-mark">${esc((u?.username || 'U')[0].toUpperCase())}</div><br>
@@ -2048,12 +2344,28 @@ function profile() {
     <div class="line"><span>${t('contactPhoneLabel')}</span><b>${esc(u?.phone || '—')}</b></div>
     <div class="line"><span>${t('pointsBalanceLabel')}</span><b class="price">${u?.points || 0} ${t('pointsPlus')}</b></div>
     <div class="line"><span>${t('totalOrdersLabel')}</span><b>${SRDB.ordersOf(u?.id).length}</b></div>
-    <div class="line"><span>${t('vouchersLabel')}</span><b>${(u?.vouchers || []).filter(v => !v.used).length} ${t('available')}</b></div>
-    <br>
-    <div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap">
-      <button class="btn ghost sm" onclick="SRDB.addPoints(S.userId,25,'Demo test bonus');toast('+25 demo pt added')">${t('testBonusBtn')}</button>
-      <button class="btn ghost sm" onclick="clearMyLoginData()">${t('clearLoginDataText')}</button>
-      <button class="btn ghost sm" onclick="logout()">${t('logoutBtn')}</button>
+    <div class="line"><span>${t('vouchersLabel')}</span><b>${availCount} ${t('available')}</b></div>
+
+    <div class="account-actions-box">
+      <!-- Main Action Buttons: Vouchers & Customer Service (Telegram) -->
+      <div class="account-primary-actions">
+        <button class="btn primary account-voucher-btn" onclick="openAccountVouchersModal()">
+          🎟️ <span>${t('myVouchersBtn')}</span> <span class="badge" style="background:rgba(255,255,255,0.22);color:#fff;margin-left:4px">${availCount}</span>
+        </button>
+        <a href="${tgUrl}" target="_blank" rel="noopener noreferrer" class="btn tg account-cs-btn" title="Contact Seller on Telegram">
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor">
+            <path d="M9.8 15.6 9.4 20c.6 0 .9-.3 1.2-.6l2.9-2.7 6 4.4c1.1.6 1.9.3 2.2-1L24 3.6c.4-1.6-.6-2.2-1.6-1.8L.9 10.1c-1.5.6-1.5 1.4-.3 1.8l5.5 1.7L18.9 5.7c.6-.4 1.1-.2.7.2"/>
+          </svg>
+          <span>${t('customerServiceBtn')}</span>
+        </a>
+      </div>
+
+      <!-- Secondary Utility Actions -->
+      <div class="account-secondary-actions">
+        <button class="btn ghost sm" onclick="SRDB.addPoints(S.userId,25,'Demo test bonus');toast('+25 demo pt added')">${t('testBonusBtn')}</button>
+        <button class="btn ghost sm" onclick="clearMyLoginData()">${t('clearLoginDataText')}</button>
+        <button class="btn ghost sm" onclick="logout()">${t('logoutBtn')}</button>
+      </div>
     </div>
   </div>`);
 }
