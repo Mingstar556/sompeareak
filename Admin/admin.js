@@ -57,17 +57,98 @@ function playNotificationSound() {
   } catch (e) {}
 }
 
-/* Theme sync */
+/* Theme sync with circular reveal transition */
 const sess = JSON.parse(localStorage.getItem('sr_session') || '{}');
 let theme = sess.theme || 'dark';
 const applyTheme = () => {
   document.documentElement.dataset.theme = theme;
 };
-const toggleTheme = () => {
-  theme = theme === 'dark' ? 'light' : 'dark';
-  sess.theme = theme;
-  localStorage.setItem('sr_session', JSON.stringify(sess));
-  applyTheme();
+let adminThemeTransitioning = false;
+const toggleTheme = (e) => {
+  if (adminThemeTransitioning) return;
+  const nextTheme = theme === 'dark' ? 'light' : 'dark';
+
+  const btn = $('#themeSwitch');
+  let x = window.innerWidth / 2;
+  let y = 40;
+  if (btn) {
+    const rect = btn.getBoundingClientRect();
+    x = rect.left + rect.width / 2;
+    y = rect.top + rect.height / 2;
+  } else if (e && e.clientX) {
+    x = e.clientX;
+    y = e.clientY;
+  }
+
+  const endRadius = Math.hypot(
+    Math.max(x, window.innerWidth - x),
+    Math.max(y, window.innerHeight - y)
+  );
+
+  const applyNewTheme = () => {
+    theme = nextTheme;
+    sess.theme = theme;
+    localStorage.setItem('sr_session', JSON.stringify(sess));
+    applyTheme();
+  };
+
+  if (document.startViewTransition && !window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+    adminThemeTransitioning = true;
+    const transition = document.startViewTransition(() => {
+      applyNewTheme();
+    });
+    transition.ready.then(() => {
+      const anim = document.documentElement.animate(
+        {
+          clipPath: [
+            `circle(0px at ${x}px ${y}px)`,
+            `circle(${endRadius}px at ${x}px ${y}px)`
+          ]
+        },
+        {
+          duration: 560,
+          easing: 'cubic-bezier(0.22, 1, 0.36, 1)',
+          pseudoElement: '::view-transition-new(root)'
+        }
+      );
+      anim.onfinish = () => {
+        adminThemeTransitioning = false;
+      };
+    }).catch(() => {
+      adminThemeTransitioning = false;
+    });
+  } else {
+    adminThemeTransitioning = true;
+    let overlay = document.getElementById('themeWaveOverlay');
+    if (!overlay) {
+      overlay = document.createElement('div');
+      overlay.id = 'themeWaveOverlay';
+      overlay.className = 'theme-wave-circle';
+      document.body.appendChild(overlay);
+    }
+    overlay.style.backgroundColor = nextTheme === 'light' ? '#eaedf2' : '#0c0e17';
+    overlay.style.display = 'block';
+    overlay.style.clipPath = `circle(0px at ${x}px ${y}px)`;
+
+    const anim = overlay.animate(
+      [
+        { clipPath: `circle(0px at ${x}px ${y}px)` },
+        { clipPath: `circle(${endRadius}px at ${x}px ${y}px)` }
+      ],
+      {
+        duration: 500,
+        easing: 'cubic-bezier(0.22, 1, 0.36, 1)'
+      }
+    );
+    anim.onfinish = () => {
+      applyNewTheme();
+      overlay.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 160 }).onfinish = () => {
+        overlay.style.display = 'none';
+        overlay.style.opacity = '1';
+        adminThemeTransitioning = false;
+      };
+    };
+  }
 };
 const themeSwitchEl = $('#themeSwitch') || $('#themeBtn');
 if (themeSwitchEl) themeSwitchEl.onclick = toggleTheme;
@@ -84,6 +165,7 @@ $('#pinBtn').onclick = () => {
   const correct = String(SRDB.settings().admin_pin || SRDB.settings().adminPin || '1234');
   if (val === correct || val === '1234') {
     sessionStorage.setItem('sr_admin', '1');
+    sessionStorage.setItem('sr_admin_pin', val || correct);
     localStorage.setItem('sr_admin_mode', '1');
     enter();
   } else {
@@ -97,12 +179,14 @@ pinInput.onkeydown = e => {
 
 $('#quickLoginBtn').onclick = () => {
   sessionStorage.setItem('sr_admin', '1');
+  sessionStorage.setItem('sr_admin_pin', '1234');
   localStorage.setItem('sr_admin_mode', '1');
   enter();
 };
 
 $('#logoutBtn').onclick = () => {
   sessionStorage.removeItem('sr_admin');
+  sessionStorage.removeItem('sr_admin_pin');
   localStorage.removeItem('sr_admin_mode');
   location.reload();
 };
@@ -114,7 +198,18 @@ function enter() {
 }
 
 /* Navigation Tabs */
-let tab = 'dashboard', orderFilter = 'Pending';
+let tab = 'dashboard', orderFilter = 'Pending', orderSearchQuery = '';
+
+function onOrderSearchChange(q) {
+  orderSearchQuery = (q || '').trim();
+  render();
+}
+
+function clearOrderSearch() {
+  orderSearchQuery = '';
+  render();
+}
+
 const TABS = [
   ['dashboard', '📊 Dashboard'],
   ['orders', '🧾 Orders & Receipts'],
@@ -215,9 +310,15 @@ function openAdminMoreSheet() {
       <button class="btn ghost" style="justify-content:flex-start;padding:12px 14px;border-radius:10px;font-size:0.95rem" onclick="closeModal();switchAdminTab('database')">
         🗄️ <b>Python SQLite Database (Live DB)</b>
       </button>
+      <button class="btn ghost" style="justify-content:flex-start;padding:12px 14px;border-radius:10px;font-size:0.95rem" onclick="playNotificationSound();toast('🔔 Chime sound played! Audio enabled.')">
+        🔊 <b>Test Order Notification Alert Sound</b>
+      </button>
       <button class="btn primary" style="justify-content:flex-start;padding:12px 14px;border-radius:10px;font-size:0.95rem" onclick="closeModal();launchFrontAdminMode()">
         👑 <b>Launch Front Storefront in Edit Mode</b>
       </button>
+      <a href="index.html" class="btn ghost" style="justify-content:flex-start;padding:12px 14px;border-radius:10px;font-size:0.95rem;text-decoration:none">
+        🛒 <b>View Customer Storefront (Normal)</b>
+      </a>
       <button class="btn danger sm" style="margin-top:10px;justify-content:center" onclick="closeModal();logoutAdmin()">
         ⏻ Log out from Admin Panel
       </button>
@@ -268,8 +369,12 @@ function launchFrontAdminMode() {
   sessionStorage.setItem('sr_front_edit_authorized', '1');
   localStorage.setItem('sr_front_edit_authorized', '1');
   sessionStorage.setItem('sr_admin', '1');
-  window.open('index.html?admin_edit=1', '_blank');
   toast('🚀 Opening Customer Storefront in Admin Edit Mode...');
+  if (/Android|iPhone|iPad|iPod/i.test(navigator.userAgent) || window.innerWidth <= 768) {
+    setTimeout(() => { location.href = 'index.html?admin_edit=1'; }, 300);
+  } else {
+    window.open('index.html?admin_edit=1', '_blank');
+  }
 }
 
 /* ================================================================
@@ -361,9 +466,24 @@ function dashboard() {
    2. Orders & Receipts
    ================================================================ */
 function orders() {
-  const pend = SRDB.orders().filter(o => o.status === 'Pending').length;
+  const allOrders = SRDB.orders();
+  const pend = allOrders.filter(o => o.status === 'Pending').length;
   const F = ['Pending', 'Approved', 'Shipped', 'Delivered', 'Rejected', 'All'];
-  const list = SRDB.orders().filter(o => orderFilter === 'All' || o.status === orderFilter);
+  let list = allOrders.filter(o => orderFilter === 'All' || o.status === orderFilter);
+
+  if (orderSearchQuery) {
+    const q = orderSearchQuery.toLowerCase();
+    list = list.filter(o => {
+      const u = SRDB.user(o.user_id || o.userId);
+      const contact = o.contact || {};
+      const itemsStr = (o.items || []).map(i => i.name).join(' ').toLowerCase();
+      return (o.id && o.id.toLowerCase().includes(q)) ||
+             (u && u.username && u.username.toLowerCase().includes(q)) ||
+             (contact.phone && contact.phone.includes(q)) ||
+             (contact.name && contact.name.toLowerCase().includes(q)) ||
+             itemsStr.includes(q);
+    });
+  }
 
   const pendingBannerHtml = pend > 0 ? `
   <div class="pending-alert-banner">
@@ -389,6 +509,15 @@ function orders() {
           if (f === 'Pending' && pend > 0) badge = ` <span class="badge pending-pulse sm-pulse">${pend}</span>`;
           return `<button class="btn sm ${orderFilter === f ? 'primary' : 'ghost'}" onclick="orderFilter='${f}';render()">${f}${badge}</button>`;
         }).join('')}
+      </div>
+    </div>
+
+    <!-- Live Order Search for Admin Desk -->
+    <div class="order-search-box">
+      <div class="search-input-wrap" style="position:relative;flex:1">
+        <span class="search-icon">🔍</span>
+        <input type="text" id="orderSearchInput" placeholder="Search Order ID (#...), @customer, phone, or items..." value="${esc(orderSearchQuery)}" oninput="onOrderSearchChange(this.value)" autocomplete="off">
+        ${orderSearchQuery ? `<button type="button" class="search-clear-btn" onclick="clearOrderSearch()" title="Clear search">✕</button>` : ''}
       </div>
     </div>
     ${list.length ? `
@@ -473,10 +602,17 @@ function orders() {
             </div>` : ''}
 
           <div class="aoc-customer">
-            <div class="aoc-user">
-              <b>@${esc(u?.username || 'user')}</b> <span class="badge ok">TG ✔</span>
+            <div class="aoc-user" style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:6px">
+              <div>
+                <b>@${esc(u?.username || 'user')}</b> <span class="badge ok">TG ✔</span>
+              </div>
+              <div style="display:flex;gap:6px">
+                <a href="https://t.me/${esc(u?.username || '').replace('@','')}" target="_blank" rel="noopener noreferrer" class="btn sm tg" style="padding:4px 8px;font-size:0.75rem;display:inline-flex;align-items:center;gap:4px">💬 Telegram</a>
+                ${(contact.phone || u?.phone) ? `<a href="tel:${esc(contact.phone || u?.phone)}" class="btn sm ghost" style="padding:4px 8px;font-size:0.75rem;display:inline-flex;align-items:center;gap:4px">📞 Call</a>` : ''}
+              </div>
             </div>
             <div class="aoc-contact small muted">
+              ${contact.name ? `<div>👤 ${esc(contact.name)}</div>` : ''}
               ${contact.phone || u?.phone ? `<div>📞 <a href="tel:${esc(contact.phone || u?.phone)}">${esc(contact.phone || u?.phone)}</a></div>` : ''}
               ${contact.address ? `<div>📍 ${esc(contact.address)}</div>` : ''}
               ${contact.payment ? `<div>💳 ${esc(contact.payment)}</div>` : ''}
@@ -593,6 +729,8 @@ function viewOrder(id) {
       <button class="btn ghost" onclick="setOrderStatus('${o.id}','Shipped');closeModal()">Mark Shipped 🚚</button>
       <button class="btn danger sm" onclick="cancelOrder('${o.id}')">Cancel & Restore Stock</button>
     ` : ''}
+    <a href="https://t.me/${esc(u?.username || '').replace('@','')}" target="_blank" rel="noopener noreferrer" class="btn sm tg" style="display:inline-flex;align-items:center;gap:4px">💬 Chat Telegram</a>
+    ${(contact.phone || u?.phone) ? `<a href="tel:${esc(contact.phone || u?.phone)}" class="btn sm ghost" style="display:inline-flex;align-items:center;gap:4px">📞 Call Customer</a>` : ''}
     <button class="btn ghost" onclick="window.print()">🖨️ Print Receipt</button>
     <button class="btn ghost" onclick="closeModal()">Close</button>
   </div>`);
@@ -1398,6 +1536,9 @@ function settings() {
       <div class="full">
         ${f('announcement', 'Announcement Bar Message (Top of Site)', 'text', 'Displayed at the top of the store')}
       </div>
+      <div class="full">
+        ${f('sellerTelegram', 'Seller Telegram Username / Link', 'text', 'Telegram username or link for Customer Service button (e.g. sompheareak)')}
+      </div>
     </div>
 
     <br><h3>Pricing & Loyalty Economics</h3>
@@ -1511,6 +1652,7 @@ async function saveSettings() {
   if (patch.customBasePrice !== undefined) patch.custom_base_price = patch.customBasePrice;
   if (patch.charmPrice !== undefined) patch.charm_price = patch.charmPrice;
   if (patch.customPt !== undefined) patch.custom_pt = patch.customPt;
+  if (patch.sellerTelegram) patch.seller_telegram = patch.sellerTelegram;
 
   await SRDB.saveSettings(patch);
   applyLogo();

@@ -80,6 +80,9 @@ const I18N = {
     loginDataCleared: 'បានសម្អាតទិន្នន័យចូលគណនីរួចរាល់ ✨',
     gateAdminLink: '🔐 ចូលផ្ទាំង Admin',
     gateViewAdmin: '👑 មើលហាងជា Admin',
+    gateAdminDeskBtnText: 'ចូលផ្ទាំង Admin Desk (Store Owner)',
+    clearFilter: 'សម្អាតការស្វែងរក',
+    resultsFound: 'រកឃើញ {n} មុខទំនិញ',
 
     // Top Navigation
     myPoints: 'ពិន្ទុ',
@@ -297,6 +300,9 @@ const I18N = {
     loginDataCleared: 'Login data cleared from this browser ✨',
     gateAdminLink: '🔐 Admin Login',
     gateViewAdmin: '👑 View Shop as Admin',
+    gateAdminDeskBtnText: 'Admin Desk Portal (Store Owner)',
+    clearFilter: 'Clear Search',
+    resultsFound: 'Found {n} items',
 
     // Top Navigation
     myPoints: 'pt',
@@ -558,6 +564,8 @@ function applyLanguageUI() {
   if (gAdminLink) gAdminLink.textContent = t('gateAdminLink');
   const gViewAdminLink = $('#gateViewAdminLink');
   if (gViewAdminLink) gViewAdminLink.textContent = t('gateViewAdmin');
+  const gAdminDeskBtn = $('#gateAdminDeskBtnText');
+  if (gAdminDeskBtn) gAdminDeskBtn.textContent = t('gateAdminDeskBtnText');
 
   // Navigation tooltips & buttons
   const nrBtn = $('#navRewardsBtn');
@@ -1089,6 +1097,17 @@ function togglePriceSort(btnEl) {
 
 function onHomeSearchChange(query) {
   homeSearchQuery = (query || '').trim();
+  const clr = $('#homeSearchClearBtn');
+  if (clr) clr.style.display = homeSearchQuery ? 'grid' : 'none';
+  updateHomeProductsDisplay();
+}
+
+function clearHomeSearch() {
+  homeSearchQuery = '';
+  const inp = $('#homeSearchInput');
+  if (inp) inp.value = '';
+  const clr = $('#homeSearchClearBtn');
+  if (clr) clr.style.display = 'none';
   updateHomeProductsDisplay();
 }
 
@@ -1350,7 +1369,11 @@ function home() {
         <p class="muted">${t('generalShopDesc')}</p>
       </div>
       <div class="shop-search-box">
-        <input id="homeSearchInput" type="search" placeholder="${t('searchPlaceholder')}" value="${esc(homeSearchQuery)}" oninput="onHomeSearchChange(this.value)" autocomplete="off">
+        <div class="search-input-wrap">
+          <span class="search-icon">🔍</span>
+          <input id="homeSearchInput" type="search" placeholder="${t('searchPlaceholder')}" value="${esc(homeSearchQuery)}" oninput="onHomeSearchChange(this.value)" autocomplete="off">
+          <button type="button" class="search-clear-btn" id="homeSearchClearBtn" onclick="clearHomeSearch()" title="Clear search" style="${homeSearchQuery ? 'display:grid' : 'display:none'}">✕</button>
+        </div>
       </div>
     </div>
 
@@ -2362,6 +2385,9 @@ function profile() {
 
       <!-- Secondary Utility Actions -->
       <div class="account-secondary-actions">
+        <a href="admin.html" class="btn ghost sm" style="color:#10b981;border-color:rgba(16,185,129,0.4);display:inline-flex;align-items:center;gap:6px;font-weight:600" title="Open Admin Panel">
+          👑 <span>${t('adminPortal')}</span>
+        </a>
         <button class="btn ghost sm" onclick="SRDB.addPoints(S.userId,25,'Demo test bonus');toast('+25 demo pt added')">${t('testBonusBtn')}</button>
         <button class="btn ghost sm" onclick="clearMyLoginData()">${t('clearLoginDataText')}</button>
         <button class="btn ghost sm" onclick="logout()">${t('logoutBtn')}</button>

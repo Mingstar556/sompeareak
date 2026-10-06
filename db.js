@@ -100,9 +100,15 @@ const SRDB = (() => {
   const API_BASE = window.location.origin.includes('http') ? '' : 'http://127.0.0.1:5000';
   async function api(path, opts = {}) {
     try {
+      const pin = sessionStorage.getItem('sr_admin_pin') || (sessionStorage.getItem('sr_admin') === '1' ? (data?.settings?.admin_pin || '1234') : '');
+      const headers = {
+        'Content-Type': 'application/json',
+        ...(pin ? { 'X-Admin-PIN': pin } : {}),
+        ...(opts.headers || {})
+      };
       const res = await fetch(`${API_BASE}${path}`, {
-        headers: { 'Content-Type': 'application/json' },
         ...opts,
+        headers,
       });
       if (!res.ok) {
         const err = await res.json().catch(() => ({ error: res.statusText }));

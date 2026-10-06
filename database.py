@@ -4,23 +4,37 @@ import os
 import uuid
 from datetime import datetime
 
-DB_PATH = os.path.join(os.path.dirname(__file__), 'sompheareak.db')
+# --- Environment Variable & Secrets Loading ---
+try:
+    from dotenv import load_dotenv
+    load_dotenv()
+except ImportError:
+    _env_file = os.path.join(os.path.dirname(os.path.abspath(__file__)), '.env')
+    if os.path.exists(_env_file):
+        with open(_env_file, 'r', encoding='utf-8') as _f:
+            for _line in _f:
+                _line = _line.strip()
+                if _line and not _line.startswith('#') and '=' in _line:
+                    _k, _v = _line.split('=', 1)
+                    os.environ.setdefault(_k.strip(), _v.strip().strip('"').strip("'"))
+
+DB_PATH = os.environ.get('DATABASE_PATH') or os.path.join(os.path.dirname(os.path.abspath(__file__)), 'sompheareak.db')
 
 DEFAULT_SETTINGS = {
-    'site_title': 'សម្ភារៈ - Somphea Reak',
-    'subtitle': 'Premium Studio',
-    'tagline': 'Cambodia Kingdom of Wonder',
-    'admin_pin': '1234',
-    'delivery_fee': 1.5,
-    'voucher_cost': 25,
-    'voucher_pct': 10,
-    'custom_base_price': 8.0,
-    'charm_price': 1.5,
-    'custom_pt': 5,
+    'site_title': os.environ.get('SITE_TITLE', 'សម្ភារៈ - Somphea Reak'),
+    'subtitle': os.environ.get('SITE_SUBTITLE', 'Premium Studio'),
+    'tagline': os.environ.get('TAGLINE', 'Cambodia Kingdom of Wonder'),
+    'admin_pin': os.environ.get('ADMIN_PIN', '1234'),
+    'delivery_fee': float(os.environ.get('DELIVERY_FEE', 1.5)),
+    'voucher_cost': int(os.environ.get('VOUCHER_COST', 25)),
+    'voucher_pct': int(os.environ.get('VOUCHER_PCT', 10)),
+    'custom_base_price': float(os.environ.get('CUSTOM_BASE_PRICE', 8.0)),
+    'charm_price': float(os.environ.get('CHARM_PRICE', 1.5)),
+    'custom_pt': int(os.environ.get('CUSTOM_PT', 5)),
     'site_logo': 'logo.jpg',
     'charms': json.dumps(['❤️','⭐','🌸','🦋','🐱','🍀','🌙','☀️','💎','🎀','🐶','🌈','⚽','🎵','🇰🇭','🔤','⚡','👑']),
     'announcement': '✨ Welcome to Somphea Reak Studio • Verified Telegram Orders • Earn Points on Every Item!',
-    'seller_telegram': 'sompheareak'
+    'seller_telegram': os.environ.get('SELLER_TELEGRAM', 'sompheareak')
 }
 
 DEFAULT_CATEGORIES = [
@@ -169,8 +183,15 @@ def init_db():
         )
     ''')
 
+    # Auto-seed sample catalog if products table is empty (ensures clean clone starts with full catalog)
+    c.execute('SELECT COUNT(*) as cnt FROM products')
+    has_prods = c.fetchone()['cnt'] > 0
+
     conn.commit()
     conn.close()
+
+    if not has_prods:
+        seed_sample_products()
 
 def now():
     return datetime.now().isoformat()

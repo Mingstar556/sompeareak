@@ -1,11 +1,109 @@
 import os
 import sys
+import time
+from functools import wraps
 from flask import Flask, request, jsonify, send_from_directory, redirect
 import database
 
+# --- Environment Variable & Secrets Loading ---
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
+try:
+    from dotenv import load_dotenv
+    load_dotenv(os.path.join(BASE_DIR, '.env'))
+except ImportError:
+    _env_file = os.path.join(BASE_DIR, '.env')
+    if os.path.exists(_env_file):
+        with open(_env_file, 'r', encoding='utf-8') as _f:
+            for _line in _f:
+                _line = _line.strip()
+                if _line and not _line.startswith('#') and '=' in _line:
+                    _k, _v = _line.split('=', 1)
+                    os.environ.setdefault(_k.strip(), _v.strip().strip('"').strip("'"))
+
+# Initialize Database Schema
+database.init_db()
+
 app = Flask(__name__, static_folder=BASE_DIR)
+app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'sompheareak_secret_key_prod_2026')
+app.config['MAX_CONTENT_LENGTH'] = int(os.environ.get('MAX_CONTENT_LENGTH', 16 * 1024 * 1024))
+
+# --- Security Headers Middleware ---
+@app.after_request
+def add_security_headers(response):
+    if os.environ.get('ENABLE_SECURITY_HEADERS', 'True').lower() in ('true', '1'):
+        response.headers['X-Content-Type-Options'] = 'nosniff'
+        response.headers['X-Frame-Options'] = 'SAMEORIGIN'
+        response.headers['X-XSS-Protection'] = '1; mode=block'
+        response.headers['Referrer-Policy'] = 'strict-origin-when-cross-origin'
+        response.headers['Permissions-Policy'] = 'camera=(), microphone=(), geolocation=()'
+        response.headers['Content-Security-Policy'] = (
+            "default-src 'self' http: https: data: blob: 'unsafe-inline' 'unsafe-eval'; "
+            "frame-ancestors 'self';"
+        )
+    return response
+
+# --- Admin Authentication & Rate Limiting ---
+FAILED_PIN_ATTEMPTS = {}
+MAX_PIN_ATTEMPTS = int(os.environ.get('ADMIN_RATE_LIMIT_MAX_ATTEMPTS', 5))
+PIN_LOCK_WINDOW = int(os.environ.get('ADMIN_RATE_LIMIT_WINDOW_SECONDS', 60))
+
+def get_admin_pin():
+    return os.environ.get('ADMIN_PIN') or str(database.get_settings().get('admin_pin', '1234'))
+
+def check_pin_rate_limit(ip):
+    now_ts = time.time()
+    record = FAILED_PIN_ATTEMPTS.get(ip)
+    if not record:
+        return True, 0
+    if record.get('locked_until', 0) > now_ts:
+        return False, int(record['locked_until'] - now_ts)
+    if now_ts - record.get('last_attempt', 0) > PIN_LOCK_WINDOW:
+        FAILED_PIN_ATTEMPTS.pop(ip, None)
+        return True, 0
+    return True, 0
+
+def record_failed_pin(ip):
+    now_ts = time.time()
+    record = FAILED_PIN_ATTEMPTS.setdefault(ip, {'count': 0, 'last_attempt': now_ts, 'locked_until': 0})
+    record['count'] += 1
+    record['last_attempt'] = now_ts
+    if record['count'] >= MAX_PIN_ATTEMPTS:
+        record['locked_until'] = now_ts + PIN_LOCK_WINDOW
+
+def record_success_pin(ip):
+    FAILED_PIN_ATTEMPTS.pop(ip, None)
+
+def is_admin_authorized(req):
+    configured_pin = get_admin_pin()
+    # 1. Check custom header
+    pin_hdr = req.headers.get('X-Admin-PIN', '').strip()
+    if pin_hdr and pin_hdr == configured_pin:
+        return True
+    # 2. Check Bearer token
+    auth_hdr = req.headers.get('Authorization', '').strip()
+    if auth_hdr.startswith('Bearer ') and auth_hdr[7:].strip() == configured_pin:
+        return True
+    # 3. Check JSON payload pin
+    if req.is_json and req.json and str(req.json.get('admin_pin', '')).strip() == configured_pin:
+        return True
+    # 4. In development mode on localhost, allow developer testing
+    is_dev = os.environ.get('FLASK_ENV', 'development') == 'development'
+    is_loopback = req.remote_addr in ('127.0.0.1', '::1', 'localhost')
+    if is_dev and is_loopback:
+        return True
+    return False
+
+def admin_required(f):
+    @wraps(f)
+    def decorated(*args, **kwargs):
+        if not is_admin_authorized(request):
+            return jsonify({
+                'error': 'Unauthorized: Admin authentication required',
+                'code': 'ADMIN_AUTH_REQUIRED'
+            }), 401
+        return f(*args, **kwargs)
+    return decorated
 
 # --- Static Page Routes ---
 @app.route('/')
@@ -23,15 +121,35 @@ def admin_page():
             return send_from_directory(candidate, 'admin.html')
     return send_from_directory(BASE_DIR, 'admin.html')
 
-@app.route('/<path:filename>')
-def serve_static(filename):
-    if filename.startswith('api/'):
-        return jsonify({'error': 'Endpoint not found'}), 404
-    for candidate in [BASE_DIR, os.path.join(BASE_DIR, 'costumer'), os.path.join(BASE_DIR, 'Admin'), os.path.join(BASE_DIR, 'database')]:
-        target = os.path.join(candidate, filename)
-        if os.path.isfile(target):
-            return send_from_directory(candidate, filename)
-    return index()
+# --- API: Admin PIN Verification (Rate-Limited) ---
+@app.route('/api/admin/verify-pin', methods=['POST'])
+def verify_pin():
+    ip = request.remote_addr or 'unknown'
+    allowed, remaining = check_pin_rate_limit(ip)
+    if not allowed:
+        return jsonify({
+            'ok': False,
+            'error': f'Too many failed attempts. Security lock active for {remaining}s.',
+            'locked': True,
+            'retry_after': remaining
+        }), 429
+
+    data = request.json or {}
+    pin = str(data.get('pin', '')).strip()
+    correct_pin = str(get_admin_pin())
+
+    if pin == correct_pin:
+        record_success_pin(ip)
+        return jsonify({'ok': True, 'role': 'admin'})
+    else:
+        record_failed_pin(ip)
+        current_attempts = FAILED_PIN_ATTEMPTS.get(ip, {}).get('count', 0)
+        attempts_left = max(0, MAX_PIN_ATTEMPTS - current_attempts)
+        return jsonify({
+            'ok': False,
+            'error': 'Invalid PIN' if attempts_left > 0 else f'Too many failed attempts. Locked for {PIN_LOCK_WINDOW}s.',
+            'attempts_left': attempts_left
+        }), 401
 
 # --- API: Settings ---
 @app.route('/api/settings', methods=['GET'])
@@ -39,20 +157,11 @@ def get_settings():
     return jsonify(database.get_settings())
 
 @app.route('/api/settings', methods=['POST'])
+@admin_required
 def save_settings():
     patch = request.json or {}
     updated = database.save_settings(patch)
     return jsonify(updated)
-
-# --- API: Admin PIN Check ---
-@app.route('/api/admin/verify-pin', methods=['POST'])
-def verify_pin():
-    data = request.json or {}
-    pin = str(data.get('pin', '')).strip()
-    correct_pin = str(database.get_settings().get('admin_pin', '1234'))
-    if pin == correct_pin:
-        return jsonify({'ok': True})
-    return jsonify({'ok': False, 'error': 'Invalid PIN'}), 401
 
 # --- API: Categories ---
 @app.route('/api/categories', methods=['GET'])
@@ -60,6 +169,7 @@ def list_categories():
     return jsonify(database.get_categories())
 
 @app.route('/api/categories', methods=['POST'])
+@admin_required
 def save_category():
     data = request.json or {}
     if not data.get('name') and not data.get('kh'):
@@ -68,6 +178,7 @@ def save_category():
     return jsonify(cat)
 
 @app.route('/api/categories/<cat_id>', methods=['DELETE'])
+@admin_required
 def delete_category(cat_id):
     database.delete_category(cat_id)
     return jsonify({'ok': True})
@@ -87,6 +198,7 @@ def get_product(prod_id):
     return jsonify(p)
 
 @app.route('/api/products', methods=['POST'])
+@admin_required
 def save_product():
     data = request.json or {}
     if not data.get('name') or data.get('price') is None:
@@ -95,11 +207,13 @@ def save_product():
     return jsonify(p)
 
 @app.route('/api/products/<prod_id>', methods=['DELETE'])
+@admin_required
 def delete_product(prod_id):
     database.delete_product(prod_id)
     return jsonify({'ok': True})
 
 @app.route('/api/products/<prod_id>/stock', methods=['POST'])
+@admin_required
 def adjust_stock(prod_id):
     data = request.json or {}
     delta = int(data.get('delta', 0))
@@ -107,14 +221,23 @@ def adjust_stock(prod_id):
     return jsonify(p)
 
 @app.route('/api/products/seed', methods=['POST'])
+@admin_required
 def seed_catalog():
     products = database.seed_sample_products()
     return jsonify({'ok': True, 'count': len(products)})
 
 @app.route('/api/products/clear', methods=['POST'])
+@admin_required
 def clear_catalog():
     database.clear_products()
     return jsonify({'ok': True})
+
+# --- API: Database Reset ---
+@app.route('/api/database/reset', methods=['POST'])
+@admin_required
+def reset_db():
+    database.reset_database()
+    return jsonify({'ok': True, 'message': 'Database reset successfully with fresh tester features.'})
 
 # --- API: Users ---
 @app.route('/api/users/login', methods=['POST'])
@@ -160,12 +283,6 @@ def redeem_voucher(user_id):
     u = database.get_user(user_id)
     return jsonify({'voucher': voucher, 'user': u})
 
-@app.route('/api/database/reset', methods=['POST'])
-def reset_db():
-    database.reset_database()
-    return jsonify({'ok': True, 'message': 'Database reset successfully with fresh tester features.'})
-
-
 # --- API: Orders ---
 @app.route('/api/orders', methods=['GET'])
 def list_orders():
@@ -189,6 +306,7 @@ def create_order():
     return jsonify(order)
 
 @app.route('/api/orders/<order_id>/approve', methods=['POST'])
+@admin_required
 def approve_order(order_id):
     order, err = database.approve_order(order_id)
     if err:
@@ -196,6 +314,7 @@ def approve_order(order_id):
     return jsonify(order)
 
 @app.route('/api/orders/<order_id>/reject', methods=['POST'])
+@admin_required
 def reject_order(order_id):
     data = request.json or {}
     note = data.get('note', 'Item out of stock')
@@ -205,6 +324,7 @@ def reject_order(order_id):
     return jsonify(order)
 
 @app.route('/api/orders/<order_id>/cancel', methods=['POST'])
+@admin_required
 def cancel_order(order_id):
     data = request.json or {}
     reason = data.get('reason', 'Cancelled by admin')
@@ -214,6 +334,7 @@ def cancel_order(order_id):
     return jsonify(order)
 
 @app.route('/api/orders/<order_id>/status', methods=['POST'])
+@admin_required
 def update_status(order_id):
     data = request.json or {}
     status = data.get('status', 'Shipped')
@@ -234,7 +355,19 @@ def read_notifications():
     database.mark_notifications_read(order_id)
     return jsonify({'ok': True})
 
+# --- Fallback Static File Handler (Runs AFTER all API routes) ---
+@app.route('/<path:filename>')
+def serve_static(filename):
+    if filename.startswith('api/'):
+        return jsonify({'error': 'API endpoint not found'}), 404
+    for candidate in [BASE_DIR, os.path.join(BASE_DIR, 'costumer'), os.path.join(BASE_DIR, 'Admin'), os.path.join(BASE_DIR, 'database')]:
+        target = os.path.join(candidate, filename)
+        if os.path.isfile(target):
+            return send_from_directory(candidate, filename)
+    return index()
+
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
+    debug = os.environ.get('DEBUG', 'False').lower() in ('true', '1')
     print(f"Starting Somphea Reak Python server on http://127.0.0.1:{port}")
-    app.run(host='0.0.0.0', port=port, debug=False)
+    app.run(host='0.0.0.0', port=port, debug=debug)

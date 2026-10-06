@@ -42,7 +42,7 @@
       <div class="step" style="margin-top:22px">
         <label for="pin">Admin Security PIN</label>
         <div style="position:relative;display:flex;align-items:center">
-          <input id="pin" type="password" placeholder="Enter PIN (default: 1234)" autofocus autocomplete="current-password" />
+          <input id="pin" type="password" placeholder="Enter PIN (default: 1234)" autofocus autocomplete="current-password" inputmode="numeric" pattern="[0-9]*" />
           <button id="togglePinVis" type="button" class="btn sm ghost" style="position:absolute;right:6px;padding:6px;border:none" title="Show/Hide PIN">👁️</button>
         </div>
         <p id="pinErr" class="err hidden">Incorrect PIN. Try 1234 or use Quick Login.</p>
@@ -57,17 +57,17 @@
 
   <!-- Main Admin Interface -->
   <div id="admin" class="hidden">
-    <header class="topbar glass">
-      <span class="brand">
+    <header class="topbar glass admin-topbar">
+      <span class="brand admin-brand">
         <span class="logo-mark sm"><img src="logo.jpg" alt="Logo" class="site-logo-img" /></span>
-        <span>Admin Panel</span>
+        <span class="admin-brand-title">Admin Panel</span>
         <span id="backendBadge" style="font-size:0.72rem;padding:3px 10px;border-radius:99px;background:rgba(34,197,94,.16);color:var(--ok);font-weight:600;margin-left:6px">Live Sync</span>
       </span>
-      <nav class="actions">
+      <nav class="actions admin-actions">
         <button type="button" class="icon-btn notif-bell-btn" id="adminNotifBellBtn" title="Pending Order Confirmations" onclick="showPendingOrders()">
           🔔<span class="dot-count hidden" id="adminPendingCount">0</span>
         </button>
-        <button type="button" class="btn primary sm" onclick="launchFrontAdminMode()" title="Launch customer storefront with live admin editing tools enabled">👑 Edit Front Storefront</button>
+        <button type="button" class="btn primary sm admin-launch-btn" onclick="launchFrontAdminMode()" title="Launch customer storefront with live admin editing tools enabled">👑 Shop</button>
         <button class="theme-switch" id="themeSwitch" type="button" aria-label="Toggle dark/light theme" title="Toggle dark/light mode">
           <span class="switch-knob">
             <span class="moon-icon" aria-hidden="true">
