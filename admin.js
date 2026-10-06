@@ -820,7 +820,7 @@ function products() {
       </div>
       <div style="display:flex;gap:8px;flex-wrap:wrap">
         <button class="btn primary" onclick="editProduct()">＋ Upload New Product</button>
-        <button class="btn ghost sm" onclick="seedSampleProducts()">✨ Seed Sample Catalog</button>
+        
         <button class="btn danger sm" onclick="clearAllProducts()">🗑️ Clear All</button>
       </div>
     </div>
@@ -1564,24 +1564,9 @@ function settings() {
     <div class="form-grid">
       ${f('adminPin', 'Admin Access PIN', 'password', 'PIN required to log into this panel')}
     </div>
-
-    <br><h3>Database & Tester Reset</h3>
-    <div style="margin-top:10px;padding:16px;border:1px dashed var(--border);border-radius:var(--radius-md);background:rgba(255,255,255,0.02)">
-      <p class="muted small" style="margin-bottom:10px">Need a fresh database file while keeping all tester features, luxury catalog, and test VIP user? Click below:</p>
-      <button type="button" class="btn danger sm" onclick="resetDatabaseClean()">⚡ Clean Reset SQLite Database (Keep Tester Features)</button>
-    </div>
-
     <br>
     <button class="btn primary" onclick="saveSettings()">Save Changes 💾</button>
   </div>`;
-}
-
-async function resetDatabaseClean() {
-  if (confirm('Cleanly reset SQLite database? This will clear test orders, restore default settings, and reseed luxury sample products and test VIP user.')) {
-    await SRDB.resetDatabase();
-    toast('⚡ SQLite database reset successfully with all tester features!');
-    render();
-  }
 }
 
 function resetDefaultLogo() {

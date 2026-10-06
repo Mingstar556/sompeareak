@@ -87,11 +87,6 @@ def is_admin_authorized(req):
     # 3. Check JSON payload pin
     if req.is_json and req.json and str(req.json.get('admin_pin', '')).strip() == configured_pin:
         return True
-    # 4. In development mode on localhost, allow developer testing
-    is_dev = os.environ.get('FLASK_ENV', 'development') == 'development'
-    is_loopback = req.remote_addr in ('127.0.0.1', '::1', 'localhost')
-    if is_dev and is_loopback:
-        return True
     return False
 
 def admin_required(f):
@@ -232,12 +227,6 @@ def clear_catalog():
     database.clear_products()
     return jsonify({'ok': True})
 
-# --- API: Database Reset ---
-@app.route('/api/database/reset', methods=['POST'])
-@admin_required
-def reset_db():
-    database.reset_database()
-    return jsonify({'ok': True, 'message': 'Database reset successfully with fresh tester features.'})
 
 # --- API: Users ---
 @app.route('/api/users/login', methods=['POST'])
