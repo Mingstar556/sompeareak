@@ -29,7 +29,8 @@ DEFAULT_SETTINGS = {
     'voucher_cost': int(os.environ.get('VOUCHER_COST', 25)),
     'voucher_pct': int(os.environ.get('VOUCHER_PCT', 10)),
     'custom_base_price': float(os.environ.get('CUSTOM_BASE_PRICE', 8.0)),
-    'charm_price': float(os.environ.get('CHARM_PRICE', 1.5)),
+    'charm_price': float(os.environ.get('CHARM_PRICE', 0.75)),
+    'custom_premium_pkg': float(os.environ.get('CUSTOM_PREMIUM_PKG', 0.5)),
     'custom_pt': int(os.environ.get('CUSTOM_PT', 5)),
     'site_logo': 'logo.jpg',
     'charms': json.dumps(['❤️','⭐','🌸','🦋','🐱','🍀','🌙','☀️','💎','🎀','🐶','🌈','⚽','🎵','🇰🇭','🔤','⚡','👑']),
@@ -183,15 +184,37 @@ def init_db():
         )
     ''')
 
+    # Charms table (Italy Charm Bracelet Links & Customizer Studio)
+    c.execute('''
+        CREATE TABLE IF NOT EXISTS charms (
+            id TEXT PRIMARY KEY,
+            name TEXT NOT NULL,
+            category TEXT NOT NULL,
+            price REAL NOT NULL DEFAULT 0.75,
+            price_khr INTEGER DEFAULT 3000,
+            stock INTEGER DEFAULT 99,
+            image TEXT NOT NULL,
+            sort_order INTEGER DEFAULT 0,
+            active INTEGER DEFAULT 1,
+            created_at TEXT
+        )
+    ''')
+
     # Auto-seed sample catalog if products table is empty (ensures clean clone starts with full catalog)
     c.execute('SELECT COUNT(*) as cnt FROM products')
     has_prods = c.fetchone()['cnt'] > 0
+
+    c.execute('SELECT COUNT(*) as cnt FROM charms')
+    has_charms = c.fetchone()['cnt'] > 0
 
     conn.commit()
     conn.close()
 
     if not has_prods:
         seed_sample_products()
+
+    if not has_charms:
+        seed_default_charms()
 
 def now():
     return datetime.now().isoformat()
@@ -861,6 +884,134 @@ def mark_notifications_read(order_id=None):
     conn.close()
     return True
 
+# --- Charms (Italy Charm Bracelet Links & Customizer Studio) ---
+def get_charms(include_inactive=False, category=None):
+    conn = get_db()
+    c = conn.cursor()
+    query = 'SELECT * FROM charms'
+    params = []
+    conditions = []
+    if not include_inactive:
+        conditions.append('active = 1')
+    if category and category != 'All':
+        conditions.append('category = ?')
+        params.append(category)
+    if conditions:
+        query += ' WHERE ' + ' AND '.join(conditions)
+    query += ' ORDER BY sort_order ASC, name ASC'
+    c.execute(query, params)
+    rows = [dict(r) for r in c.fetchall()]
+    conn.close()
+    return rows
+
+def get_charm(charm_id):
+    conn = get_db()
+    c = conn.cursor()
+    c.execute('SELECT * FROM charms WHERE id = ?', (charm_id,))
+    row = c.fetchone()
+    conn.close()
+    return dict(row) if row else None
+
+def upsert_charm(data):
+    conn = get_db()
+    c = conn.cursor()
+    charm_id = str(data.get('id', '')).strip()
+    if not charm_id:
+        charm_id = 'ch_' + uuid.uuid4().hex[:8]
+
+    name = str(data.get('name', 'Italy Charm')).strip() or 'Italy Charm'
+    category = str(data.get('category', 'Classic')).strip() or 'Classic'
+    price = round(float(data.get('price', 0.75)), 2)
+    price_khr = int(data.get('price_khr') or round(price * 4000))
+    stock = int(data.get('stock', 99))
+    image = str(data.get('image', '')).strip() or 'https://via.placeholder.com/150?text=Charm'
+    sort_order = int(data.get('sort_order', 0))
+    active = int(data.get('active', 1))
+
+    c.execute('SELECT id FROM charms WHERE id = ?', (charm_id,))
+    existing = c.fetchone()
+
+    if existing:
+        c.execute('''
+            UPDATE charms
+            SET name = ?, category = ?, price = ?, price_khr = ?, stock = ?, image = ?, sort_order = ?, active = ?
+            WHERE id = ?
+        ''', (name, category, price, price_khr, stock, image, sort_order, active, charm_id))
+    else:
+        c.execute('''
+            INSERT INTO charms (id, name, category, price, price_khr, stock, image, sort_order, active, created_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ''', (charm_id, name, category, price, price_khr, stock, image, sort_order, active, now()))
+
+    conn.commit()
+    conn.close()
+    return get_charm(charm_id)
+
+def delete_charm(charm_id):
+    conn = get_db()
+    c = conn.cursor()
+    c.execute('DELETE FROM charms WHERE id = ?', (charm_id,))
+    conn.commit()
+    conn.close()
+    return True
+
+def adjust_charm_stock(charm_id, delta=None, new_stock=None):
+    conn = get_db()
+    c = conn.cursor()
+    if new_stock is not None:
+        c.execute('UPDATE charms SET stock = ? WHERE id = ?', (max(0, int(new_stock)), charm_id))
+    elif delta is not None:
+        c.execute('UPDATE charms SET stock = MAX(0, stock + ?) WHERE id = ?', (int(delta), charm_id))
+    conn.commit()
+    conn.close()
+    return get_charm(charm_id)
+
+def seed_default_charms():
+    conn = get_db()
+    c = conn.cursor()
+    c.execute('DELETE FROM charms')
+    seed_file = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'default_charms.json')
+    seeded_count = 0
+    if os.path.exists(seed_file):
+        with open(seed_file, 'r', encoding='utf-8') as f:
+            charms_list = json.load(f)
+        for idx, item in enumerate(charms_list):
+            c.execute('''
+                INSERT INTO charms (id, name, category, price, price_khr, stock, image, sort_order, active, created_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ''', (
+                item.get('id', f'ch_{idx}'),
+                item.get('name', f'Charm {idx+1}'),
+                item.get('category', 'Classic'),
+                float(item.get('price', 0.75)),
+                int(item.get('price_khr', 3000)),
+                int(item.get('stock', 99)),
+                item.get('image', ''),
+                int(item.get('sort_order', idx)),
+                int(item.get('active', 1)),
+                now()
+            ))
+            seeded_count += 1
+    conn.commit()
+    conn.close()
+    return seeded_count
+
+def clear_charms():
+    conn = get_db()
+    c = conn.cursor()
+    c.execute('DELETE FROM charms')
+    conn.commit()
+    conn.close()
+    return True
+
+def get_charm_categories():
+    conn = get_db()
+    c = conn.cursor()
+    c.execute('SELECT category, COUNT(*) as cnt, MIN(image) as thumb FROM charms WHERE active = 1 GROUP BY category ORDER BY cnt DESC')
+    cats = [dict(r) for r in c.fetchall()]
+    conn.close()
+    return cats
+
 def reset_database():
     conn = get_db()
     c = conn.cursor()
@@ -870,6 +1021,7 @@ def reset_database():
     c.execute('DROP TABLE IF EXISTS users')
     c.execute('DROP TABLE IF EXISTS products')
     c.execute('DROP TABLE IF EXISTS categories')
+    c.execute('DROP TABLE IF EXISTS charms')
     c.execute('DROP TABLE IF EXISTS settings')
     conn.commit()
     conn.close()
@@ -877,11 +1029,10 @@ def reset_database():
     # Recreate tables and default settings/categories
     init_db()
 
-    # Seed 11 sample products
+    # Seed 11 sample products and charms
     seed_sample_products()
+    seed_default_charms()
 
-    conn.commit()
-    conn.close()
     return True
 
 # Initialize database on module import

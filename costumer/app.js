@@ -886,6 +886,11 @@ function updateAdminBar() {
 document.addEventListener('click', e => {
   const n = e.target.closest('[data-nav]');
   if (n) {
+    if (n.dataset.nav === 'custom-bracelet') {
+      e.preventDefault();
+      window.location.href = 'custom-bracelet';
+      return;
+    }
     e.preventDefault();
     location.hash = n.dataset.nav;
   }
@@ -2219,49 +2224,44 @@ async function redeem() {
 }
 
 /* ================================================================
-   Views: 6. Custom Italy Charm Designer
+   Views: 6. Custom Italy Charm Designer & Studio
    ================================================================ */
 function customizer() {
   const c = cfg();
-  const charmsList = c.charms || DEFAULT_CHARMS;
-  const price = c.customBasePrice + custom.length * c.charmPrice;
+  const isKm = S.lang === 'km';
 
   view(`
-  <div class="section-title">
-    <div>
-      <h2>${t('customTitle')}</h2>
-      <p class="muted">${t('customDesc')}</p>
+  <div class="glass panel" style="text-align:center;padding:50px 20px;max-width:760px;margin:20px auto;border-radius:24px">
+    <div style="width:72px;height:72px;border-radius:50%;background:rgba(234,88,12,0.12);color:#ea580c;display:flex;align-items:center;justify-content:center;font-size:2.2rem;margin:0 auto 16px">
+      🔗
     </div>
-    <button class="btn ghost" data-nav="home">${t('backToHome')}</button>
-  </div>
+    <h2 class="kh" style="font-size:1.6rem;color:#ea580c">
+      ${isKm ? 'ស្ទូឌីយោរចនាខ្សែដៃអ៊ីតាលី' : 'Custom Italy Bracelet Studio'}
+    </h2>
+    <p class="muted" style="margin:10px auto 20px;max-width:540px;line-height:1.6">
+      ${isKm ? 'រចនាខ្សែដៃអ៊ីតាលីរបស់អ្នកផ្ទាល់ដោយជ្រើសរើសត្បូង អូសប្តូរទីតាំង (Drag & Drop) ចម្លងត្បូង មើលរូបភាពមុនកម្ម៉ង់ និងជ្រើសរើសការវេចខ្ចប់ពិសេស' : 'Build your own Italian charm bracelet link-by-link with live interactive preview, drag-and-drop link reordering, design codes, and luxury gift packaging.'}
+    </p>
 
-  <div class="two">
-    <div class="glass panel">
-      <div style="display:flex;justify-content:space-between;align-items:center">
-        <h3>${t('braceletPreview', { count: custom.length, max: MAX_LINKS })}</h3>
-        ${custom.length ? `<button class="btn ghost sm" onclick="custom=[];customizer()">${t('clearBtn')}</button>` : ''}
+    <div style="display:flex;gap:12px;justify-content:center;flex-wrap:wrap;margin-bottom:28px">
+      <div class="glass" style="padding:12px 18px;border-radius:12px;text-align:left;min-width:160px">
+        <span class="muted small">${isKm ? 'តម្លៃខ្សែចាប់ផ្តើម' : 'Base Band'}</span>
+        <h4 style="margin:2px 0 0;color:#ea580c">${money(c.customBasePrice)} (${Math.round(c.customBasePrice * 4000).toLocaleString()}៛)</h4>
       </div>
-      <br>
-      <div class="bracelet-preview">
-        ${custom.length ? custom.map((ch, i) => `<span onclick="custom.splice(${i},1);customizer()" title="Tap to remove">${ch}</span>`).join('')
-        : `<p class="muted">${t('emptyBracelet')}</p>`}
+      <div class="glass" style="padding:12px 18px;border-radius:12px;text-align:left;min-width:160px">
+        <span class="muted small">${isKm ? 'តម្លៃត្បូងនីមួយៗ' : 'Charm Links'}</span>
+        <h4 style="margin:2px 0 0;color:#22c55e">3,000៛ (${money(c.charmPrice || 0.75)})</h4>
       </div>
-      <br>
-      <h4>${t('availableCharms')}</h4>
-      <div class="charms" style="margin-top:10px">
-        ${charmsList.map(ch => `<button class="charm" onclick="if(custom.length<${MAX_LINKS}){custom.push('${ch}');customizer()}">${ch}</button>`).join('')}
+      <div class="glass" style="padding:12px 18px;border-radius:12px;text-align:left;min-width:160px">
+        <span class="muted small">${isKm ? 'ពិន្ទុរង្វាន់' : 'Loyalty Points'}</span>
+        <h4 style="margin:2px 0 0;color:#3b82f6">+${c.customPt || 5} pt</h4>
       </div>
     </div>
-    <div class="glass panel">
-      <h3>${t('configPrice')}</h3>
-      <div class="line"><span>${t('baseBand')}</span><span>${money(c.customBasePrice)}</span></div>
-      <div class="line"><span>${t('charmsCost', { count: custom.length, price: money(c.charmPrice) })}</span><span>${money(custom.length * c.charmPrice)}</span></div>
-      <div class="line"><b>${t('totalAmount')}</b><b class="price">${money(price)}</b></div>
-      <div class="line"><span>${t('pointsReward')}</span><b class="price">+${c.customPt} ${t('pointsPlus')}</b></div>
-      <br>
-      <button class="btn primary" style="width:100%" ${custom.length ? '' : 'disabled'} onclick="addCustom()">
-        ${t('addCustomBtn')}
-      </button>
+
+    <div style="display:flex;gap:14px;justify-content:center;flex-wrap:wrap">
+      <a href="custom-bracelet" class="btn primary" style="font-size:1.05rem;padding:14px 28px;text-decoration:none;display:inline-flex;align-items:center;gap:8px;box-shadow:0 10px 25px rgba(234,88,12,0.3)">
+        ✨ ${isKm ? 'ចាប់ផ្តើមរចនាខ្សែដៃឥឡូវនេះ (Open Studio)' : 'Launch Bracelet Studio Now'} ➔
+      </a>
+      <button class="btn ghost" data-nav="home" style="padding:14px 20px">${t('backToHome')}</button>
     </div>
   </div>`);
 }

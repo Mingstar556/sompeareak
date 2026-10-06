@@ -116,6 +116,14 @@ def admin_page():
             return send_from_directory(candidate, 'admin.html')
     return send_from_directory(BASE_DIR, 'admin.html')
 
+@app.route('/custom-bracelet')
+@app.route('/custom-bracelet.html')
+def custom_bracelet_page():
+    for candidate in [BASE_DIR, os.path.join(BASE_DIR, 'costumer')]:
+        if os.path.exists(os.path.join(candidate, 'custom-bracelet.html')):
+            return send_from_directory(candidate, 'custom-bracelet.html')
+    return send_from_directory(BASE_DIR, 'custom-bracelet.html')
+
 # --- API: Admin PIN Verification (Rate-Limited) ---
 @app.route('/api/admin/verify-pin', methods=['POST'])
 def verify_pin():
@@ -226,6 +234,125 @@ def seed_catalog():
 def clear_catalog():
     database.clear_products()
     return jsonify({'ok': True})
+
+
+# --- API: Charms & Custom Italy Bracelet Studio ---
+@app.route('/api/products/custom_bracelet', methods=['GET'])
+def get_custom_bracelet_catalog():
+    charms = database.get_charms(include_inactive=False)
+    cat_summary = database.get_charm_categories()
+    categories_list = [{'name': c['category'], 'image': c['thumb']} for c in cat_summary]
+    
+    products_list = []
+    for c in charms:
+        products_list.append({
+            'id': c['id'],
+            'title': c['name'],
+            'category': c['category'],
+            'price': c['price'],
+            'price_khr': c.get('price_khr') or int(round(c['price'] * 4000)),
+            'stock': c['stock'],
+            'image': c['image'],
+            'thumbnail': c['image'],
+            'variants': []
+        })
+    return jsonify({
+        'categories': categories_list,
+        'products': products_list
+    })
+
+@app.route('/api/charms', methods=['GET'])
+def list_charms():
+    include_inactive = request.args.get('all', '0') in ('1', 'true')
+    category = request.args.get('cat')
+    charms = database.get_charms(include_inactive, category)
+    return jsonify(charms)
+
+@app.route('/api/charms/<charm_id>', methods=['GET'])
+def get_single_charm(charm_id):
+    charm = database.get_charm(charm_id)
+    if not charm:
+        return jsonify({'error': 'Charm not found'}), 404
+    return jsonify(charm)
+
+@app.route('/api/charms', methods=['POST'])
+@admin_required
+def save_charm():
+    data = request.json or {}
+    if not data.get('name') or data.get('price') is None:
+        return jsonify({'error': 'Charm name and price are required'}), 400
+    charm = database.upsert_charm(data)
+    return jsonify(charm)
+
+@app.route('/api/charms/<charm_id>', methods=['DELETE'])
+@admin_required
+def delete_charm_item(charm_id):
+    database.delete_charm(charm_id)
+    return jsonify({'ok': True})
+
+@app.route('/api/charms/<charm_id>/stock', methods=['POST'])
+@admin_required
+def adjust_charm_stock_item(charm_id):
+    data = request.json or {}
+    delta = data.get('delta')
+    stock = data.get('stock')
+    charm = database.adjust_charm_stock(charm_id, delta=delta, new_stock=stock)
+    return jsonify(charm)
+
+@app.route('/api/charms/seed', methods=['POST'])
+@admin_required
+def seed_charms_catalog():
+    count = database.seed_default_charms()
+    return jsonify({'ok': True, 'count': count})
+
+@app.route('/api/charms/clear', methods=['POST'])
+@admin_required
+def clear_charms_catalog():
+    database.clear_charms()
+    return jsonify({'ok': True})
+
+@app.route('/api/charms/categories', methods=['GET'])
+def list_charm_categories():
+    return jsonify(database.get_charm_categories())
+
+@app.route('/api/check-promo', methods=['GET'])
+def check_promo():
+    code = (request.args.get('code') or '').strip().upper()
+    if code in ('SOMPHEA', 'SALE10', 'STUDIO10'):
+        return jsonify({'ok': True, 'code': code, 'discountPercent': 10, 'discountAmount': 0})
+    if code in ('VIP20', 'REAK20'):
+        return jsonify({'ok': True, 'code': code, 'discountPercent': 20, 'discountAmount': 0})
+    if code in ('SAVE2000', 'BOXFREE'):
+        return jsonify({'ok': True, 'code': code, 'discountPercent': 0, 'discountAmount': 2000})
+    return jsonify({'ok': False, 'error': 'Invalid or expired promo code'}), 404
+
+@app.route('/api/checkout', methods=['POST'])
+def universal_checkout():
+    data = request.json or {}
+    name = (data.get('name') or '').strip()
+    phone = (data.get('phone') or '').strip()
+    address = (data.get('address') or '').strip()
+    items = data.get('items', [])
+    total = float(data.get('total', 0))
+    promo = data.get('redeemCode', '')
+    tg_user = data.get('telegram_user') or {}
+    
+    username = tg_user.get('username') or name or 'customer'
+    user = database.upsert_user(username, phone)
+    
+    order_data = {
+        'user_id': user['id'],
+        'items': items,
+        'subtotal': total,
+        'discount': 0,
+        'delivery': 0,
+        'total': total,
+        'earned': 5,
+        'voucher': promo,
+        'contact': {'name': name, 'phone': phone, 'address': address, 'telegram': username}
+    }
+    order = database.place_order(order_data)
+    return jsonify({'ok': True, 'order_id': order['id'], 'order': order})
 
 
 # --- API: Users ---

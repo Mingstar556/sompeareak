@@ -208,6 +208,7 @@ const TABS = [
   ['orders', '🧾 Orders & Receipts'],
   ['products', '🛍️ Products & Prices'],
   ['categories', '🏷️ Categories'],
+  ['charms', '🔗 Italy Charms & Studio'],
   ['customers', '👥 Customers & Pt'],
   ['settings', '⚙️ Site Settings'],
   ['database', '🗄️ Database (SQLite)']
@@ -264,7 +265,7 @@ function render() {
   });
   const ambMore = $('#ambTabMore');
   if (ambMore) {
-    ambMore.classList.toggle('active', ['customers', 'settings', 'database'].includes(tab));
+    ambMore.classList.toggle('active', ['charms', 'customers', 'settings', 'database'].includes(tab));
   }
   const ambOrdersBadge = $('#ambOrdersBadge');
   if (ambOrdersBadge) {
@@ -276,7 +277,7 @@ function render() {
     }
   }
 
-  ({ dashboard, orders, products, categories, customers, settings, database })[tab]();
+  ({ dashboard, orders, products, categories, charms, customers, settings, database })[tab]();
 }
 
 function switchAdminTab(tName) {
@@ -294,6 +295,9 @@ function openAdminMoreSheet() {
     <p class="muted small" style="margin-bottom:16px">Access customer points, site branding, database, and front editor</p>
     
     <div style="display:flex;flex-direction:column;gap:10px">
+      <button class="btn ghost" style="justify-content:flex-start;padding:12px 14px;border-radius:10px;font-size:0.95rem" onclick="closeModal();switchAdminTab('charms')">
+        🔗 <b>Italy Charm Bracelet Studio & Parts</b>
+      </button>
       <button class="btn ghost" style="justify-content:flex-start;padding:12px 14px;border-radius:10px;font-size:0.95rem" onclick="closeModal();switchAdminTab('customers')">
         👥 <b>Customer Accounts & Loyalty Points</b>
       </button>
@@ -813,7 +817,7 @@ function products() {
       </div>
       <div style="display:flex;gap:8px;flex-wrap:wrap">
         <button class="btn primary" onclick="editProduct()">＋ Upload New Product</button>
-        <button class="btn ghost sm" onclick="seedSampleProducts()">✨ Seed Sample Catalog</button>
+        
         <button class="btn danger sm" onclick="clearAllProducts()">🗑️ Clear All</button>
       </div>
     </div>
@@ -1395,6 +1399,359 @@ async function deleteCategory(id, name) {
 }
 
 /* ================================================================
+   4b. Italy Charms & Custom Bracelet Studio Management
+   ================================================================ */
+let charmSearchQuery = '';
+let charmCatFilter = 'all';
+let charmStockFilter = 'all';
+
+function charms() {
+  const allCharms = SRDB.charms(true);
+  const categories = SRDB.charmCategories();
+  const c = SRDB.settings();
+
+  // Filter charms
+  let filtered = allCharms;
+  if (charmSearchQuery) {
+    const q = charmSearchQuery.toLowerCase();
+    filtered = filtered.filter(ch => (ch.name || '').toLowerCase().includes(q) || (ch.id || '').toLowerCase().includes(q) || (ch.category || '').toLowerCase().includes(q));
+  }
+  if (charmCatFilter !== 'all') {
+    filtered = filtered.filter(ch => (ch.category || '').toLowerCase() === charmCatFilter.toLowerCase());
+  }
+  if (charmStockFilter === 'instock') {
+    filtered = filtered.filter(ch => (ch.stock || 0) > 0);
+  } else if (charmStockFilter === 'out') {
+    filtered = filtered.filter(ch => (ch.stock || 0) <= 0);
+  }
+
+  const inStockCount = allCharms.filter(ch => (ch.stock || 0) > 0).length;
+  const outCount = allCharms.length - inStockCount;
+
+  $('#view').innerHTML = `
+  <div class="glass panel">
+    <div class="section-title" style="margin-top:0">
+      <div>
+        <h2>🔗 Italy Bracelet Studio & Charms</h2>
+        <p class="muted">Manage customizable charm links, categories, prices in KHR/USD, stock levels, and studio pricing</p>
+      </div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <button class="btn primary" onclick="editCharm()">＋ Add New Charm</button>
+        <button class="btn ghost" onclick="openStudioPricingModal()">⚙️ Studio Pricing</button>
+        <a href="custom-bracelet" target="_blank" class="btn ghost" style="text-decoration:none;display:inline-flex;align-items:center;gap:6px">👁️ Test Studio ↗</a>
+        <button class="btn ghost sm" onclick="reseedCharmsCatalog()" title="Restore default authentic 448 charms">✨ Reseed Catalog</button>
+      </div>
+    </div>
+
+    <!-- Quick Stats Cards -->
+    <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(130px, 1fr));gap:10px;margin-bottom:16px">
+      <div class="glass" style="padding:10px 14px;border-radius:12px;background:rgba(255,255,255,0.03)">
+        <span class="muted small">Total Charms</span>
+        <h3 style="margin:2px 0 0;font-size:1.4rem;color:#ea580c">${allCharms.length}</h3>
+      </div>
+      <div class="glass" style="padding:10px 14px;border-radius:12px;background:rgba(255,255,255,0.03)">
+        <span class="muted small">In Stock</span>
+        <h3 style="margin:2px 0 0;font-size:1.4rem;color:#22c55e">${inStockCount}</h3>
+      </div>
+      <div class="glass" style="padding:10px 14px;border-radius:12px;background:rgba(255,255,255,0.03)">
+        <span class="muted small">Out of Stock</span>
+        <h3 style="margin:2px 0 0;font-size:1.4rem;color:#ef4444">${outCount}</h3>
+      </div>
+      <div class="glass" style="padding:10px 14px;border-radius:12px;background:rgba(255,255,255,0.03)">
+        <span class="muted small">Categories</span>
+        <h3 style="margin:2px 0 0;font-size:1.4rem;color:#3b82f6">${categories.length}</h3>
+      </div>
+    </div>
+
+    <!-- Filters Bar -->
+    <div style="display:flex;gap:10px;margin-bottom:16px;flex-wrap:wrap;align-items:center">
+      <input type="text" id="charmSearchInput" placeholder="🔍 Search charm name, ID, category..." value="${esc(charmSearchQuery)}" style="max-width:280px" oninput="onCharmSearch(this.value)">
+      <select id="charmCatSelect" onchange="onCharmCatFilter(this.value)" style="max-width:200px">
+        <option value="all" ${charmCatFilter === 'all' ? 'selected' : ''}>All Categories (${allCharms.length})</option>
+        ${categories.map(c => `<option value="${esc(c.category)}" ${charmCatFilter.toLowerCase() === c.category.toLowerCase() ? 'selected' : ''}>${esc(c.category)} (${c.count})</option>`).join('')}
+      </select>
+      <select id="charmStockSelect" onchange="onCharmStockFilter(this.value)" style="max-width:160px">
+        <option value="all" ${charmStockFilter === 'all' ? 'selected' : ''}>All Status</option>
+        <option value="instock" ${charmStockFilter === 'instock' ? 'selected' : ''}>In Stock</option>
+        <option value="out" ${charmStockFilter === 'out' ? 'selected' : ''}>Out of Stock</option>
+      </select>
+      <span class="muted small">Showing <b>${filtered.length}</b> charms</span>
+    </div>
+
+    ${filtered.length ? `
+    <!-- Charms Grid View -->
+    <div style="display:grid;grid-template-columns:repeat(auto-fill, minmax(180px, 1fr));gap:12px" id="charmsGrid">
+      ${filtered.map(ch => {
+        const isOut = (ch.stock || 0) <= 0;
+        const priceKHR = ch.price_khr || Math.round((ch.price || 0.75) * 4000);
+        return `
+        <div class="glass admin-charm-card" style="padding:10px;border-radius:14px;display:flex;flex-direction:column;position:relative;border:1px solid rgba(255,255,255,0.08);background:rgba(255,255,255,0.02)">
+          <div style="position:relative;width:100%;aspect-ratio:1/1;background:#fff;border-radius:10px;overflow:hidden;display:flex;align-items:center;justify-content:center;padding:6px;border:1px solid #e2e8f0;margin-bottom:8px">
+            <img src="${ch.image || 'https://via.placeholder.com/150?text=Charm'}" alt="${esc(ch.name)}" style="max-width:100%;max-height:100%;object-fit:contain;mix-blend-multiply" onerror="this.src='https://via.placeholder.com/150?text=No+Img'">
+            ${isOut ? `<span style="position:absolute;top:4px;right:4px;background:#ef4444;color:#fff;font-size:0.6rem;font-weight:900;padding:2px 6px;border-radius:4px;letter-spacing:0.05em">OUT</span>` : ''}
+            ${!ch.active ? `<span style="position:absolute;top:4px;left:4px;background:#64748b;color:#fff;font-size:0.6rem;font-weight:700;padding:2px 6px;border-radius:4px">HIDDEN</span>` : ''}
+          </div>
+          <div style="flex:1;min-width:0;display:flex;flex-direction:column">
+            <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:4px">
+              <b style="font-size:0.85rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="${esc(ch.name)}">${esc(ch.name)}</b>
+              <span class="badge" style="font-size:0.65rem;padding:2px 6px;white-space:nowrap">${esc(ch.category || 'Classic')}</span>
+            </div>
+            <div style="display:flex;justify-content:space-between;align-items:center;margin:6px 0 8px">
+              <span style="font-size:0.95rem;font-weight:800;color:#ea580c">${priceKHR.toLocaleString()}៛ <span style="font-size:0.75rem;font-weight:500;color:var(--muted)">($${Number(ch.price || 0.75).toFixed(2)})</span></span>
+            </div>
+            
+            <!-- Quick Stock Control -->
+            <div style="display:flex;align-items:center;justify-content:space-between;background:rgba(0,0,0,0.2);padding:4px 6px;border-radius:8px;margin-bottom:8px">
+              <span class="muted small" style="font-size:0.7rem">Stock:</span>
+              <div style="display:flex;align-items:center;gap:4px">
+                <button class="btn sm ghost" style="padding:1px 7px;min-height:22px;line-height:1" onclick="quickAdjustCharmStock('${ch.id}', -1)" title="Reduce stock">−</button>
+                <b style="font-size:0.8rem;min-width:24px;text-align:center;color:${isOut ? '#ef4444' : '#22c55e'}">${ch.stock || 0}</b>
+                <button class="btn sm ghost" style="padding:1px 7px;min-height:22px;line-height:1" onclick="quickAdjustCharmStock('${ch.id}', 1)" title="Increase stock">+</button>
+              </div>
+            </div>
+
+            <!-- Card Action Buttons -->
+            <div style="display:flex;gap:6px;margin-top:auto">
+              <button class="btn sm ghost" style="flex:1;padding:4px 8px;font-size:0.75rem" onclick="editCharm('${ch.id}')">✏️ Edit</button>
+              <button class="btn sm danger" style="padding:4px 8px;font-size:0.75rem" onclick="deleteCharm('${ch.id}', '${esc(ch.name).replace(/'/g, '')}')" title="Delete charm">🗑️</button>
+            </div>
+          </div>
+        </div>`;
+      }).join('')}
+    </div>` : `
+    <div style="text-align:center;padding:40px 20px;opacity:0.6">
+      <div style="font-size:3rem;margin-bottom:10px">🔗</div>
+      <h3>No charms found</h3>
+      <p class="muted">Try adjusting your search or category filter, or click "Add New Charm" above.</p>
+    </div>`}
+  </div>`;
+}
+
+function onCharmSearch(v) {
+  charmSearchQuery = v;
+  charms();
+}
+
+function onCharmCatFilter(v) {
+  charmCatFilter = v;
+  charms();
+}
+
+function onCharmStockFilter(v) {
+  charmStockFilter = v;
+  charms();
+}
+
+async function quickAdjustCharmStock(id, delta) {
+  await SRDB.adjustCharmStock(id, delta);
+  toast(`Stock ${delta > 0 ? '+1' : '-1'}`);
+  render();
+}
+
+async function deleteCharm(id, name) {
+  if (confirm(`Are you sure you want to delete charm "${name}"? It will be removed from the customizer studio.`)) {
+    await SRDB.deleteCharm(id);
+    toast('Charm deleted');
+    render();
+  }
+}
+
+function editCharm(id) {
+  const ch = id ? SRDB.charm(id) : null;
+  const isEdit = !!ch;
+  const cats = SRDB.charmCategories();
+  const priceUSD = ch ? Number(ch.price || 0.75).toFixed(2) : '0.75';
+  const priceKHR = ch ? (ch.price_khr || Math.round(Number(ch.price || 0.75) * 4000)) : 3000;
+  const stock = ch ? (ch.stock !== undefined ? ch.stock : 99) : 99;
+  const active = ch ? (ch.active !== undefined ? ch.active : 1) : 1;
+  const img = ch?.image || '';
+
+  modal(`
+  <h2>${isEdit ? 'Edit Italy Charm' : 'Add New Italy Charm'}</h2>
+  <p class="muted small">Configure charm link component, high-res photo, pricing, and stock inventory</p><br>
+  <div class="form-grid" style="text-align:left">
+    <div class="full">
+      <label for="chName">Charm Name / Title</label>
+      <input id="chName" value="${esc(ch?.name || '')}" placeholder="e.g. Silver Star Charm, Pink Butterfly, Gold Heart">
+    </div>
+    <div>
+      <label for="chCat">Category</label>
+      <input id="chCat" list="charmCatDatalist" value="${esc(ch?.category || 'Plain')}" placeholder="e.g. Plain, Cartoon, Animal">
+      <datalist id="charmCatDatalist">
+        ${cats.map(c => `<option value="${esc(c.category)}"></option>`).join('')}
+      </datalist>
+    </div>
+    <div>
+      <label for="chStock">Stock Quantity</label>
+      <input type="number" id="chStock" min="0" value="${stock}" placeholder="e.g. 50">
+    </div>
+    <div>
+      <label for="chPriceUSD">Price USD ($)</label>
+      <input type="number" id="chPriceUSD" step="0.01" min="0" value="${priceUSD}" oninput="syncCharmPrices('usd')">
+    </div>
+    <div>
+      <label for="chPriceKHR">Price KHR (៛ Riel)</label>
+      <input type="number" id="chPriceKHR" step="100" min="0" value="${priceKHR}" oninput="syncCharmPrices('khr')">
+    </div>
+    <div class="full">
+      <label for="chImage">Charm Image URL</label>
+      <div style="display:flex;gap:8px">
+        <input id="chImage" value="${esc(img)}" placeholder="https://res.cloudinary.com/... or paste image URL" oninput="updateCharmImgPreview(this.value)">
+        <button type="button" class="btn ghost sm" onclick="pickSampleCharmImage()">🎨 Presets</button>
+      </div>
+      <div id="charmImgPreviewBox" style="margin-top:10px;display:flex;align-items:center;gap:12px;background:rgba(255,255,255,0.04);padding:8px 12px;border-radius:10px">
+        <div style="width:60px;height:60px;background:#fff;border-radius:8px;display:flex;align-items:center;justify-content:center;padding:4px;border:1px solid #e2e8f0;overflow:hidden">
+          <img id="charmImgPreview" src="${img || 'https://via.placeholder.com/150?text=Charm'}" style="max-width:100%;max-height:100%;object-fit:contain" onerror="this.src='https://via.placeholder.com/150?text=Invalid'">
+        </div>
+        <span class="muted small" id="charmImgPreviewText">Live charm preview</span>
+      </div>
+    </div>
+    <div class="full" style="display:flex;align-items:center;gap:10px;margin-top:6px">
+      <label style="display:flex;align-items:center;gap:8px;cursor:pointer">
+        <input type="checkbox" id="chActive" ${active ? 'checked' : ''} style="width:auto">
+        <b>Active / Visible in Customizer Studio</b>
+      </label>
+    </div>
+  </div>
+  <br>
+  <div style="display:flex;gap:10px;justify-content:flex-end">
+    <button class="btn ghost" onclick="closeModal()">Cancel</button>
+    <button class="btn primary" onclick="saveCharm('${ch?.id || ''}')">Save Charm Link</button>
+  </div>`);
+}
+
+function syncCharmPrices(source) {
+  const RATE = 4000;
+  if (source === 'usd') {
+    const usd = parseFloat($('#chPriceUSD')?.value || 0);
+    const khrEl = $('#chPriceKHR');
+    if (khrEl) khrEl.value = Math.round(usd * RATE);
+  } else {
+    const khr = parseFloat($('#chPriceKHR')?.value || 0);
+    const usdEl = $('#chPriceUSD');
+    if (usdEl) usdEl.value = (khr / RATE).toFixed(2);
+  }
+}
+
+function updateCharmImgPreview(url) {
+  const el = $('#charmImgPreview');
+  if (el) el.src = url || 'https://via.placeholder.com/150?text=Charm';
+}
+
+function pickSampleCharmImage() {
+  const samples = [
+    { name: 'Plain Stainless Link', url: 'https://res.cloudinary.com/dwwearehy/image/upload/v1775063355/x1dfa5orfmizgkgd6tgp.webp' },
+    { name: 'Pinky Star', url: 'https://res.cloudinary.com/dwwearehy/image/upload/v1786697945/jz4g20ihytvdkvnidyzb.webp' },
+    { name: 'Pink Butterfly', url: 'https://res.cloudinary.com/dwwearehy/image/upload/v1786705153/b7k5g3s78n3t04m84y32.webp' },
+    { name: 'Cute Stitch', url: 'https://res.cloudinary.com/dwwearehy/image/upload/v1786705154/zcphh5tu0k4inhyiwmpd.webp' },
+    { name: 'Sweet Cherry', url: 'https://res.cloudinary.com/dwwearehy/image/upload/v1786705155/mqpyrp7rsxylqxlgpxji.webp' },
+    { name: 'Cat Lover', url: 'https://res.cloudinary.com/dwwearehy/image/upload/v1786705156/oxfavg7scahcaoudnjer.webp' },
+    { name: 'Black Letter', url: 'https://res.cloudinary.com/dwwearehy/image/upload/v1786705158/pekqxpfceaz1ntbcnmh0.webp' },
+    { name: 'Gold Heart', url: 'https://res.cloudinary.com/dwwearehy/image/upload/v1786705159/lwe72dinmgddqh1covqf.webp' },
+  ];
+  const choice = prompt("Select sample image index (1-8):\n" + samples.map((s, i) => `${i+1}. ${s.name}`).join("\n"));
+  if (choice) {
+    const idx = parseInt(choice) - 1;
+    if (samples[idx]) {
+      const urlInput = $('#chImage');
+      if (urlInput) {
+        urlInput.value = samples[idx].url;
+        updateCharmImgPreview(samples[idx].url);
+      }
+    }
+  }
+}
+
+async function saveCharm(id) {
+  const name = $('#chName')?.value.trim();
+  const category = $('#chCat')?.value.trim() || 'Plain';
+  const priceUSD = parseFloat($('#chPriceUSD')?.value || 0.75);
+  const priceKHR = parseInt($('#chPriceKHR')?.value || Math.round(priceUSD * 4000));
+  const stock = parseInt($('#chStock')?.value || 0);
+  const image = $('#chImage')?.value.trim();
+  const active = $('#chActive')?.checked ? 1 : 0;
+
+  if (!name) return alert('Charm name is required');
+  if (!image) return alert('Charm image URL is required');
+
+  const charmData = {
+    ...(id && { id }),
+    name,
+    category,
+    price: priceUSD,
+    price_khr: priceKHR,
+    stock,
+    image,
+    active
+  };
+
+  await SRDB.upsertCharm(charmData);
+  closeModal();
+  toast(id ? 'Charm updated successfully!' : 'New charm created!');
+  render();
+}
+
+function openStudioPricingModal() {
+  const c = SRDB.settings();
+  const basePrice = c.customBasePrice !== undefined ? c.customBasePrice : (c.custom_base_price || 8.0);
+  const pkgPrice = c.customPremiumPkg !== undefined ? c.customPremiumPkg : (c.custom_premium_pkg || 0.5);
+  const customPt = c.customPt !== undefined ? c.customPt : (c.custom_pt || 5);
+
+  modal(`
+  <h2>⚙️ Italy Bracelet Studio Pricing & Rules</h2>
+  <p class="muted small">Set base stainless steel band pricing, gift packaging box fee, and loyalty point rewards</p><br>
+  <div class="form-grid" style="text-align:left">
+    <div>
+      <label for="stBasePrice">Base Bracelet Band ($ USD)</label>
+      <input type="number" id="stBasePrice" step="0.5" min="0" value="${basePrice}">
+      <span class="muted small">~${Math.round(basePrice * 4000).toLocaleString()}៛ (Starter chain)</span>
+    </div>
+    <div>
+      <label for="stPkgPrice">Premium Box Packaging Fee ($ USD)</label>
+      <input type="number" id="stPkgPrice" step="0.1" min="0" value="${pkgPrice}">
+      <span class="muted small">~${Math.round(pkgPrice * 4000).toLocaleString()}៛ (Default 2,000៛)</span>
+    </div>
+    <div class="full">
+      <label for="stCustomPt">Loyalty Points Rewarded per Custom Bracelet</label>
+      <input type="number" id="stCustomPt" min="0" value="${customPt}">
+      <span class="muted small">Awarded to customers upon order approval</span>
+    </div>
+  </div>
+  <br>
+  <div style="display:flex;gap:10px;justify-content:flex-end">
+    <button class="btn ghost" onclick="closeModal()">Cancel</button>
+    <button class="btn primary" onclick="saveStudioPricing()">Save Studio Pricing</button>
+  </div>`);
+}
+
+async function saveStudioPricing() {
+  const basePrice = parseFloat($('#stBasePrice')?.value || 8.0);
+  const pkgPrice = parseFloat($('#stPkgPrice')?.value || 0.5);
+  const customPt = parseInt($('#stCustomPt')?.value || 5);
+
+  await SRDB.saveSettings({
+    custom_base_price: basePrice,
+    customBasePrice: basePrice,
+    custom_premium_pkg: pkgPrice,
+    customPremiumPkg: pkgPrice,
+    custom_pt: customPt,
+    customPt: customPt
+  });
+
+  closeModal();
+  toast('Studio pricing updated!');
+  render();
+}
+
+async function reseedCharmsCatalog() {
+  if (confirm("Reset and reseed all 448 authentic Italian bracelet charms from the official live catalog?")) {
+    const count = await SRDB.seedCharms();
+    toast(`Successfully reseeded ${count} authentic charms!`);
+    render();
+  }
+}
+
+/* ================================================================
    5. Customers & Loyalty Points
    ================================================================ */
 function customers() {
@@ -1557,24 +1914,9 @@ function settings() {
     <div class="form-grid">
       ${f('adminPin', 'Admin Access PIN', 'password', 'PIN required to log into this panel')}
     </div>
-
-    <br><h3>Database & Tester Reset</h3>
-    <div style="margin-top:10px;padding:16px;border:1px dashed var(--border);border-radius:var(--radius-md);background:rgba(255,255,255,0.02)">
-      <p class="muted small" style="margin-bottom:10px">Need a fresh database file while keeping all tester features, luxury catalog, and test VIP user? Click below:</p>
-      <button type="button" class="btn danger sm" onclick="resetDatabaseClean()">⚡ Clean Reset SQLite Database (Keep Tester Features)</button>
-    </div>
-
     <br>
     <button class="btn primary" onclick="saveSettings()">Save Changes 💾</button>
   </div>`;
-}
-
-async function resetDatabaseClean() {
-  if (confirm('Cleanly reset SQLite database? This will clear test orders, restore default settings, and reseed luxury sample products and test VIP user.')) {
-    await SRDB.resetDatabase();
-    toast('⚡ SQLite database reset successfully with all tester features!');
-    render();
-  }
 }
 
 function resetDefaultLogo() {

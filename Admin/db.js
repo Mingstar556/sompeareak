@@ -39,6 +39,7 @@ const SRDB = (() => {
       { id: 'bracelet', name: 'Ready-Made Bracelet', kh: 'Bracelet for Female&Male', en: 'Ready-made bracelets', icon: '📿', grad: 'linear-gradient(135deg,#22c55e,#14b8a6)', sort_order: 3 },
     ],
     products: [],
+    charms: [],
     orders: [],
     users: [],
     notifications: [],
@@ -54,6 +55,7 @@ const SRDB = (() => {
           ...c,
           settings: { ...DEFAULT.settings, ...c.settings },
           categories: (Array.isArray(c.categories) && c.categories.length) ? c.categories : structuredClone(DEFAULT.categories),
+          charms: Array.isArray(c.charms) ? c.charms : [],
         };
       }
     } catch (e) {}
@@ -123,10 +125,11 @@ const SRDB = (() => {
 
   // Initial full fetch from Python backend
   async function syncFromPython() {
-    const [st, cats, pr, ord, usr, notif] = await Promise.all([
+    const [st, cats, pr, ch, ord, usr, notif] = await Promise.all([
       api('/api/settings'),
       api('/api/categories'),
       api('/api/products?all=1'),
+      api('/api/charms?all=1'),
       api('/api/orders'),
       api('/api/users'),
       api('/api/notifications')
@@ -146,12 +149,14 @@ const SRDB = (() => {
         voucherPct: st.voucher_pct !== undefined ? st.voucher_pct : data.settings.voucherPct,
         customBasePrice: st.custom_base_price !== undefined ? st.custom_base_price : data.settings.customBasePrice,
         charmPrice: st.charm_price !== undefined ? st.charm_price : data.settings.charmPrice,
+        customPremiumPkg: st.custom_premium_pkg !== undefined ? st.custom_premium_pkg : (data.settings.customPremiumPkg || 0.5),
         customPt: st.custom_pt !== undefined ? st.custom_pt : data.settings.customPt,
       };
       changed = true;
     }
     if (Array.isArray(cats) && cats.length) { data.categories = cats; changed = true; }
     if (Array.isArray(pr)) { data.products = pr; changed = true; }
+    if (Array.isArray(ch)) { data.charms = ch; changed = true; }
     if (Array.isArray(ord)) { data.orders = ord; changed = true; }
     if (Array.isArray(usr)) { data.users = usr; changed = true; }
     if (Array.isArray(notif)) { data.notifications = notif; changed = true; }
@@ -279,6 +284,83 @@ const SRDB = (() => {
         return data.products.length;
       }
       return 0;
+    },
+
+    /* --- Charms (Italy Charm Bracelet Links & Customizer Studio) --- */
+    charms: (all = false) => (data.charms || []).filter(c => all || c.active),
+    charm: id => (data.charms || []).find(c => c.id === id),
+    charmCategories() {
+      const all = this.charms(true);
+      const map = {};
+      all.forEach(c => {
+        const cat = c.category || 'Other';
+        if (!map[cat]) map[cat] = { category: cat, count: 0, thumb: c.image };
+        map[cat].count++;
+      });
+      return Object.values(map);
+    },
+    async upsertCharm(ch) {
+      if (!Array.isArray(data.charms)) data.charms = [];
+      const chData = {
+        ...ch,
+        price: parseFloat(ch.price) || 0.75,
+        price_khr: parseInt(ch.price_khr) || Math.round((parseFloat(ch.price) || 0.75) * 4000),
+        stock: Math.max(0, parseInt(ch.stock) || 0),
+        active: ch.active !== undefined ? (ch.active ? 1 : 0) : 1
+      };
+      if (ch.id) {
+        const ex = this.charm(ch.id);
+        if (ex) Object.assign(ex, chData);
+        else data.charms.unshift(chData);
+      } else {
+        const tempId = 'ch_' + Date.now().toString(36);
+        chData.id = tempId;
+        data.charms.unshift(chData);
+      }
+      writeCache();
+
+      const saved = await api('/api/charms', {
+        method: 'POST',
+        body: JSON.stringify(chData)
+      });
+      if (saved) {
+        syncFromPython();
+        return saved;
+      }
+      return chData;
+    },
+    async adjustCharmStock(id, delta, newStock) {
+      const ch = this.charm(id);
+      if (ch) {
+        if (newStock !== undefined) ch.stock = Math.max(0, parseInt(newStock) || 0);
+        else if (delta !== undefined) ch.stock = Math.max(0, ch.stock + delta);
+        writeCache();
+      }
+      await api(`/api/charms/${id}/stock`, {
+        method: 'POST',
+        body: JSON.stringify({ delta, stock: newStock })
+      });
+      syncFromPython();
+    },
+    async deleteCharm(id) {
+      data.charms = (data.charms || []).filter(c => c.id !== id);
+      writeCache();
+      await api(`/api/charms/${id}`, { method: 'DELETE' });
+      syncFromPython();
+    },
+    async seedCharms() {
+      const res = await api('/api/charms/seed', { method: 'POST' });
+      if (res) {
+        await syncFromPython();
+        return (data.charms || []).length;
+      }
+      return 0;
+    },
+    async clearCharms() {
+      data.charms = [];
+      writeCache();
+      await api('/api/charms/clear', { method: 'POST' });
+      syncFromPython();
     },
 
     /* --- Users --- */
