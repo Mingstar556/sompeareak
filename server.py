@@ -10,20 +10,28 @@ app = Flask(__name__, static_folder=BASE_DIR)
 # --- Static Page Routes ---
 @app.route('/')
 def index():
+    for candidate in [BASE_DIR, os.path.join(BASE_DIR, 'costumer')]:
+        if os.path.exists(os.path.join(candidate, 'index.html')):
+            return send_from_directory(candidate, 'index.html')
     return send_from_directory(BASE_DIR, 'index.html')
 
 @app.route('/admin')
 @app.route('/admin.html')
 def admin_page():
+    for candidate in [BASE_DIR, os.path.join(BASE_DIR, 'Admin')]:
+        if os.path.exists(os.path.join(candidate, 'admin.html')):
+            return send_from_directory(candidate, 'admin.html')
     return send_from_directory(BASE_DIR, 'admin.html')
 
 @app.route('/<path:filename>')
 def serve_static(filename):
     if filename.startswith('api/'):
         return jsonify({'error': 'Endpoint not found'}), 404
-    if os.path.exists(os.path.join(BASE_DIR, filename)):
-        return send_from_directory(BASE_DIR, filename)
-    return send_from_directory(BASE_DIR, 'index.html')
+    for candidate in [BASE_DIR, os.path.join(BASE_DIR, 'costumer'), os.path.join(BASE_DIR, 'Admin'), os.path.join(BASE_DIR, 'database')]:
+        target = os.path.join(candidate, filename)
+        if os.path.isfile(target):
+            return send_from_directory(candidate, filename)
+    return index()
 
 # --- API: Settings ---
 @app.route('/api/settings', methods=['GET'])

@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Admin Panel | Somphea Reak</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Kantumruy+Pro:wght@300;400;600;700&family=Playfair+Display:wght@600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="styles.css" />
+  <link rel="icon" type="image/jpeg" href="logo.jpg" id="faviconEl" />
+</head>
+<body>
+  <!-- Clean, playful & professional background system -->
+  <div class="bg" aria-hidden="true">
+    <div class="bg-mesh">
+      <div class="blob b1"></div>
+      <div class="blob b2"></div>
+      <div class="blob b3"></div>
+      <div class="blob b4"></div>
+    </div>
+    <div class="grid-overlay"></div>
+    <div class="charm-sparkles">
+      <span class="spark sp1">✨</span>
+      <span class="spark sp2">⭐</span>
+      <span class="spark sp3">🌸</span>
+      <span class="spark sp4">💎</span>
+      <span class="spark sp5">🎀</span>
+    </div>
+  </div>
+
+  <!-- Admin login Gate -->
+  <section id="adminGate" class="gate">
+    <div class="glass gate-card">
+      <div class="logo-mark"><img src="logo.jpg" alt="Logo" class="site-logo-img" /></div>
+      <h1 style="margin-top:14px">Admin Panel</h1>
+      <p class="muted">Somphea Reak · Studio Management</p>
+      <div id="backendPill" style="margin-top:10px;font-size:0.75rem;padding:4px 12px;border-radius:99px;display:inline-block;background:rgba(34,197,94,.16);color:var(--ok);font-weight:600">
+        🟢 Python Backend & Live SQLite Sync
+      </div>
+
+      <div class="step" style="margin-top:22px">
+        <label for="pin">Admin Security PIN</label>
+        <div style="position:relative;display:flex;align-items:center">
+          <input id="pin" type="password" placeholder="Enter PIN (default: 1234)" autofocus autocomplete="current-password" />
+          <button id="togglePinVis" type="button" class="btn sm ghost" style="position:absolute;right:6px;padding:6px;border:none" title="Show/Hide PIN">👁️</button>
+        </div>
+        <p id="pinErr" class="err hidden">Incorrect PIN. Try 1234 or use Quick Login.</p>
+        <button id="pinBtn" class="btn primary" style="width:100%;margin-top:6px">Login to Admin Desk</button>
+        <button id="quickLoginBtn" class="btn ghost" style="width:100%" type="button">⚡ 1-Click Quick Enter</button>
+        <div style="text-align:center;margin-top:8px">
+          <a href="index.html" class="muted small" style="text-decoration:underline">← Return to Customer Shop</a>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Main Admin Interface -->
+  <div id="admin" class="hidden">
+    <header class="topbar glass">
+      <span class="brand">
+        <span class="logo-mark sm"><img src="logo.jpg" alt="Logo" class="site-logo-img" /></span>
+        <span>Admin Panel</span>
+        <span id="backendBadge" style="font-size:0.72rem;padding:3px 10px;border-radius:99px;background:rgba(34,197,94,.16);color:var(--ok);font-weight:600;margin-left:6px">Live Sync</span>
+      </span>
+      <nav class="actions">
+        <button type="button" class="icon-btn notif-bell-btn" id="adminNotifBellBtn" title="Pending Order Confirmations" onclick="showPendingOrders()">
+          🔔<span class="dot-count hidden" id="adminPendingCount">0</span>
+        </button>
+        <button type="button" class="btn primary sm" onclick="launchFrontAdminMode()" title="Launch customer storefront with live admin editing tools enabled">👑 Edit Front Storefront</button>
+        <button class="theme-switch" id="themeSwitch" type="button" aria-label="Toggle dark/light theme" title="Toggle dark/light mode">
+          <span class="switch-knob">
+            <span class="moon-icon">🌙</span>
+            <span class="sun-icon">☀️</span>
+          </span>
+        </button>
+        <button class="icon-btn" id="logoutBtn" title="Log out">⏻</button>
+      </nav>
+    </header>
+    <div class="admin-wrap">
+      <aside class="glass side" id="side"></aside>
+      <main id="view" style="padding:0;max-width:none;margin:0"></main>
+    </div>
+
+    <!-- Admin Mobile Bottom Navigation Dock (Ergonomic thumb control on smartphones) -->
+    <nav class="admin-mobile-nav" id="adminMobileNav" aria-label="Admin Mobile Navigation">
+      <button class="admin-nav-item active" type="button" onclick="switchAdminTab('dashboard')" id="ambTabDashboard">
+        <span class="amb-icon">📊</span>
+        <span class="amb-label">Dash</span>
+      </button>
+      <button class="admin-nav-item" type="button" onclick="switchAdminTab('orders')" id="ambTabOrders">
+        <span class="amb-icon" style="position:relative">
+          🧾
+          <span class="dot-count hidden" id="ambOrdersBadge">0</span>
+        </span>
+        <span class="amb-label">Orders</span>
+      </button>
+      <button class="admin-nav-item" type="button" onclick="switchAdminTab('products')" id="ambTabProducts">
+        <span class="amb-icon">🛍️</span>
+        <span class="amb-label">Products</span>
+      </button>
+      <button class="admin-nav-item" type="button" onclick="switchAdminTab('categories')" id="ambTabCategories">
+        <span class="amb-icon">🏷️</span>
+        <span class="amb-label">Categories</span>
+      </button>
+      <button class="admin-nav-item" type="button" onclick="openAdminMoreSheet()" id="ambTabMore">
+        <span class="amb-icon">⚙️</span>
+        <span class="amb-label">More</span>
+      </button>
+    </nav>
+  </div>
+
+  <div id="toast" class="toast"></div>
+  <div id="modal" class="modal hidden">
+    <div class="glass modal-card" id="modalCard" style="max-width:600px;position:relative">
+      <button onclick="closeModal()" type="button" class="btn ghost sm" style="position:absolute;top:14px;right:14px;padding:4px 8px;border-radius:50%" title="Close">✖</button>
+      <div id="modalBody" style="padding-top:10px"></div>
+    </div>
+  </div>
+  <input type="file" id="fileInput" accept="image/*" style="display:none" />
+  <input type="file" id="logoFileInput" accept="image/*" style="display:none" />
+
+  <script src="db.js"></script>
+  <script src="admin.js"></script>
+</body>
+</html>
