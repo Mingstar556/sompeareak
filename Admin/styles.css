@@ -616,7 +616,7 @@ input::selection, textarea::selection {
   display: flex;
   align-items: center;
   justify-content: center;
-  transform: translateX(28px);
+  transform: translateX(26px);
   transition: transform 0.48s cubic-bezier(0.34, 1.56, 0.64, 1),
               background 0.35s ease,
               box-shadow 0.35s ease,
@@ -630,7 +630,7 @@ input::selection, textarea::selection {
 }
 
 [data-theme="light"] .switch-knob {
-  transform: translateX(1px);
+  transform: translateX(0px);
   background: #fffbeb;
   box-shadow: 0 2px 10px rgba(245, 158, 11, 0.5), inset 0 1px 1px #ffffff;
 }
@@ -2159,7 +2159,6 @@ th { color: var(--muted); font-weight: 600; font-size: 0.8rem; text-transform: u
 }
 .switch-knob .sun-icon,
 .switch-knob .moon-icon {
-  display: inline-block;
   transition: transform 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 [data-theme="light"] .theme-switch .sun-icon {
@@ -2785,10 +2784,10 @@ th { color: var(--muted); font-weight: 600; font-size: 0.8rem; text-transform: u
   .switch-knob {
     width: 18px;
     height: 18px;
-    transform: translateX(20px);
+    transform: translateX(18px);
   }
   [data-theme="light"] .switch-knob {
-    transform: translateX(2px);
+    transform: translateX(0px);
   }
 
   /* Admin Header Streamlining on Phone */
@@ -2911,7 +2910,7 @@ th { color: var(--muted); font-weight: 600; font-size: 0.8rem; text-transform: u
     transform: translateX(18px);
   }
   [data-theme="light"] .switch-knob {
-    transform: translateX(1px);
+    transform: translateX(0px);
   }
   .switch-knob svg {
     width: 12px;

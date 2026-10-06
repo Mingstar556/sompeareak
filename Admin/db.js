@@ -4,7 +4,7 @@
    Provides instant synchronous access with background async sync.
    ================================================================ */
 const SRDB = (() => {
-  const STORAGE_KEY = 'srdb_cache_v2';
+  const STORAGE_KEY = 'srdb_cache_v3';
   const DEFAULT = {
     settings: {
       site_title: 'សម្ភារៈ - Somphea Reak',
@@ -13,8 +13,8 @@ const SRDB = (() => {
       tagline: 'Cambodia Kingdom of Wonder',
       site_logo: 'logo.jpg',
       siteLogo: 'logo.jpg',
-      admin_pin: '1234',
-      adminPin: '1234',
+      admin_pin: 'ijsbfguinj7uijtfnrgiuwnibucugreiwvioqgvugitq254523%',
+      adminPin: 'ijsbfguinj7uijtfnrgiuwnibucugreiwvioqgvugitq254523%',
       delivery_fee: 1.5,
       deliveryFee: 1.5,
       voucher_cost: 25,

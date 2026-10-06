@@ -42,12 +42,11 @@
       <div class="step" style="margin-top:22px">
         <label for="pin">Admin Security PIN</label>
         <div style="position:relative;display:flex;align-items:center">
-          <input id="pin" type="password" placeholder="Enter PIN (default: 1234)" autofocus autocomplete="current-password" inputmode="numeric" pattern="[0-9]*" />
+          <input id="pin" type="password" placeholder="Enter Admin Security PIN" autofocus autocomplete="current-password" />
           <button id="togglePinVis" type="button" class="btn sm ghost" style="position:absolute;right:6px;padding:6px;border:none" title="Show/Hide PIN">👁️</button>
         </div>
-        <p id="pinErr" class="err hidden">Incorrect PIN. Try 1234 or use Quick Login.</p>
+        <p id="pinErr" class="err hidden">Incorrect PIN. Please check and try again.</p>
         <button id="pinBtn" class="btn primary" style="width:100%;margin-top:6px">Login to Admin Desk</button>
-        <button id="quickLoginBtn" class="btn ghost" style="width:100%" type="button">⚡ 1-Click Quick Enter</button>
         <div style="text-align:center;margin-top:8px">
           <a href="index.html" class="muted small" style="text-decoration:underline">← Return to Customer Shop</a>
         </div>

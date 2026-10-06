@@ -21,6 +21,7 @@ secrets.json
 *.db-shm
 *.sqlite
 *.sqlite3
+*.bak
 sompheareak.db
 database/sompheareak.db
 

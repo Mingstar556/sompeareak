@@ -285,7 +285,7 @@ const I18N = {
     
     // Login Gate
     gateStep1Title: 'Connect Telegram Account',
-    gateStep1Desc: 'Please sign in with Telegram to continue. (Simulated test login)',
+    gateStep1Desc: 'Please sign in with Telegram to continue. ',
     gateUserLabel: 'Telegram username',
     gateLoginBtn: 'Login with Telegram',
     gateQuickTest: '1-Click Fast Test Customer Login',
@@ -824,25 +824,7 @@ $('#phoneBtn').onclick = async () => {
   toast(S.lang === 'km' ? `សូមស្វាគមន៍ @${pendingTg} 👋` : `Welcome, @${pendingTg} 👋`);
 };
 
-const quickGuestBtn = $('#quickGuestBtn');
-if (quickGuestBtn) {
-  quickGuestBtn.onclick = async () => {
-    const rem = $('#rememberMeCheckbox');
-    if (rem && rem.checked) {
-      localStorage.setItem('sr_remembered_username', 'test_vip');
-      localStorage.setItem('sr_remembered_phone', '12888999');
-      localStorage.setItem('sr_remember', 'true');
-    }
-    const user = await SRDB.upsertUser({ username: 'test_vip', phone: '+855 12 888 999' });
-    if ((user.points || 0) < 50) {
-      await SRDB.addPoints(user.id, 50, 'Welcome test bonus');
-    }
-    S.userId = user.id;
-    save();
-    enterApp();
-    toast(S.lang === 'km' ? 'បានចូលជា @test_vip (+50 ពិន្ទុតេស្ត) ⚡' : 'Logged in as @test_vip (+50 pt test credit) ⚡');
-  };
-}
+
 
 function clearMyLoginData() {
   localStorage.removeItem('sr_session');
@@ -2388,7 +2370,6 @@ function profile() {
         <a href="admin.html" class="btn ghost sm" style="color:#10b981;border-color:rgba(16,185,129,0.4);display:inline-flex;align-items:center;gap:6px;font-weight:600" title="Open Admin Panel">
           👑 <span>${t('adminPortal')}</span>
         </a>
-        <button class="btn ghost sm" onclick="SRDB.addPoints(S.userId,25,'Demo test bonus');toast('+25 demo pt added')">${t('testBonusBtn')}</button>
         <button class="btn ghost sm" onclick="clearMyLoginData()">${t('clearLoginDataText')}</button>
         <button class="btn ghost sm" onclick="logout()">${t('logoutBtn')}</button>
       </div>

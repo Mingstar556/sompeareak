@@ -162,10 +162,10 @@ $('#togglePinVis').onclick = () => {
 
 $('#pinBtn').onclick = () => {
   const val = pinInput.value.trim();
-  const correct = String(SRDB.settings().admin_pin || SRDB.settings().adminPin || '1234');
-  if (val === correct || val === '1234') {
+  const correct = String(SRDB.settings().admin_pin || SRDB.settings().adminPin || '');
+  if (correct && val === correct) {
     sessionStorage.setItem('sr_admin', '1');
-    sessionStorage.setItem('sr_admin_pin', val || correct);
+    sessionStorage.setItem('sr_admin_pin', val);
     localStorage.setItem('sr_admin_mode', '1');
     enter();
   } else {
@@ -175,13 +175,6 @@ $('#pinBtn').onclick = () => {
 
 pinInput.onkeydown = e => {
   if (e.key === 'Enter') $('#pinBtn').click();
-};
-
-$('#quickLoginBtn').onclick = () => {
-  sessionStorage.setItem('sr_admin', '1');
-  sessionStorage.setItem('sr_admin_pin', '1234');
-  localStorage.setItem('sr_admin_mode', '1');
-  enter();
 };
 
 $('#logoutBtn').onclick = () => {

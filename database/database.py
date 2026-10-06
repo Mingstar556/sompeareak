@@ -24,7 +24,7 @@ DEFAULT_SETTINGS = {
     'site_title': os.environ.get('SITE_TITLE', 'សម្ភារៈ - Somphea Reak'),
     'subtitle': os.environ.get('SITE_SUBTITLE', 'Premium Studio'),
     'tagline': os.environ.get('TAGLINE', 'Cambodia Kingdom of Wonder'),
-    'admin_pin': os.environ.get('ADMIN_PIN', '1234'),
+    'admin_pin': os.environ.get('ADMIN_PIN', 'ijsbfguinj7uijtfnrgiuwnibucugreiwvioqgvugitq254523%'),
     'delivery_fee': float(os.environ.get('DELIVERY_FEE', 1.5)),
     'voucher_cost': int(os.environ.get('VOUCHER_COST', 25)),
     'voucher_pct': int(os.environ.get('VOUCHER_PCT', 10)),
@@ -879,32 +879,6 @@ def reset_database():
 
     # Seed 11 sample products
     seed_sample_products()
-
-    # Seed VIP Tester user (@test_vip) with 50 points and 1 demo test voucher
-    conn = get_db()
-    c = conn.cursor()
-    vip_user_id = 'Utest_vip'
-    vip_vouchers = json.dumps([{
-        'code': 'SR10-VIPDEMO',
-        'pct': 10,
-        'used': False,
-        'created_at': now()
-    }])
-    vip_point_log = json.dumps([{
-        't': 'Welcome Tester Gift (+50 pt)',
-        'd': 50,
-        'at': now()
-    }])
-    c.execute('''
-        INSERT OR REPLACE INTO users (id, username, phone, name, points, vouchers, point_log, created_at)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-    ''', (vip_user_id, 'test_vip', '+855 12 345 678', 'VIP Tester', 50, vip_vouchers, vip_point_log, now()))
-
-    # Welcome notification
-    c.execute('''
-        INSERT OR REPLACE INTO notifications (id, type, order_id, user_id, text, read, created_at)
-        VALUES (?, ?, ?, ?, ?, 0, ?)
-    ''', ('N-welcome-vip', 'welcome', None, vip_user_id, '✨ Welcome to Somphea Reak Studio! You have 50 bonus points & 1 voucher ready to use.', now()))
 
     conn.commit()
     conn.close()
