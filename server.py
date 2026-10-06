@@ -119,10 +119,8 @@ def admin_page():
 @app.route('/custom-bracelet')
 @app.route('/custom-bracelet.html')
 def custom_bracelet_page():
-    for candidate in [BASE_DIR, os.path.join(BASE_DIR, 'costumer')]:
-        if os.path.exists(os.path.join(candidate, 'custom-bracelet.html')):
-            return send_from_directory(candidate, 'custom-bracelet.html')
-    return send_from_directory(BASE_DIR, 'custom-bracelet.html')
+    return redirect('/#custom-bracelet')
+
 
 # --- API: Admin PIN Verification (Rate-Limited) ---
 @app.route('/api/admin/verify-pin', methods=['POST'])

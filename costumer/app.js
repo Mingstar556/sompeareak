@@ -886,11 +886,6 @@ function updateAdminBar() {
 document.addEventListener('click', e => {
   const n = e.target.closest('[data-nav]');
   if (n) {
-    if (n.dataset.nav === 'custom-bracelet') {
-      e.preventDefault();
-      window.location.href = 'custom-bracelet';
-      return;
-    }
     e.preventDefault();
     location.hash = n.dataset.nav;
   }
@@ -1805,6 +1800,11 @@ function cart() {
           <div>
             <b>${esc(i.name)}</b>
             <div class="muted small">${i.desc ? `[${esc(i.desc)}] ` : ''}${money(i.price)} · +${i.pt} ${t('pointsPlus')} each</div>
+            ${i.charms && i.charms.length ? `
+            <div style="display:flex;gap:3px;margin-top:6px;overflow-x:auto;max-width:280px;padding-bottom:2px">
+              ${i.charms.slice(0, 12).map(ch => `<img src="${ch.image || 'logo.jpg'}" style="width:22px;height:30px;object-fit:contain;border:1px solid rgba(148,163,184,0.3);border-radius:4px;background:rgba(255,255,255,0.06);padding:1px" title="${esc(ch.name)}">`).join('')}
+              ${i.charms.length > 12 ? `<span class="muted small" style="align-self:center;font-size:0.65rem">+${i.charms.length - 12}</span>` : ''}
+            </div>` : ''}
           </div>
         </div>
         <div class="qty">
@@ -2016,7 +2016,7 @@ async function placeOrder() {
   await SRDB.updateUser(u.id, { name, vouchers: u.vouchers });
   const o = await SRDB.placeOrder({
     userId: u.id,
-    items: L.map(({ productId, name, price, qty, pt, desc, image }) => ({ productId, name, price, qty, pt, desc, image })),
+    items: L.map(({ productId, name, price, qty, pt, desc, image, charms, code, pkg }) => ({ productId, name, price, qty, pt, desc, image, charms, code, pkg })),
     subtotal: sub,
     discount: disc,
     delivery: c.deliveryFee,
@@ -2226,58 +2226,725 @@ async function redeem() {
 /* ================================================================
    Views: 6. Custom Italy Charm Designer & Studio
    ================================================================ */
-function customizer() {
+let studioCharms = [];
+let studioSelectedUids = [];
+let studioCatFilter = 'all';
+let studioSearchQuery = '';
+let studioPkg = 'normal'; // 'normal' | 'premium'
+
+let studioDragItem = null;
+let studioDragStartX = 0;
+let studioDragCurrentX = 0;
+let studioDragStartIndex = -1;
+let studioDragHasMoved = false;
+
+function initStudioCharms() {
+  try {
+    const saved = localStorage.getItem('customCharms');
+    if (saved) {
+      const parsed = JSON.parse(saved);
+      if (Array.isArray(parsed) && parsed.length) {
+        studioCharms = parsed.map(c => ({
+          uid: c.uid || ('lk_' + Math.random().toString(36).substr(2, 9)),
+          id: c.id || c.db_id || c.ui_id,
+          name: c.name || 'Italy Charm',
+          category: c.category || (Array.isArray(c.categories) ? c.categories[0] : 'Plain'),
+          price: parseFloat(c.price) || 0.75,
+          price_khr: parseInt(c.price_khr) || Math.round((parseFloat(c.price) || 0.75) * 4000),
+          image: c.image || 'logo.jpg',
+          stock: c.stock !== undefined ? c.stock : 99
+        }));
+      }
+    }
+  } catch (e) {
+    studioCharms = [];
+  }
+}
+
+function saveStudioCharms() {
+  try {
+    localStorage.setItem('customCharms', JSON.stringify(studioCharms));
+  } catch (e) {}
+}
+
+function getStudioDesignCode() {
+  if (!studioCharms.length) return '';
+  const all = SRDB.charms(true);
+  const hex = studioCharms.map(c => {
+    let idx = all.findIndex(x => x.id === c.id || x.image === c.image);
+    if (idx < 0) idx = 0;
+    return idx.toString(36).padStart(2, '0');
+  }).join('').toUpperCase();
+  return hex.match(/.{1,4}/g)?.join('-') || hex;
+}
+
+function copyStudioDesignCode() {
+  const code = getStudioDesignCode();
+  if (!code) return toast(S.lang === 'km' ? 'សូមជ្រើសរើសត្បូងជាមុនសិន' : 'Add charms first to generate code');
+  if (navigator.clipboard && window.isSecureContext) {
+    navigator.clipboard.writeText(code).then(() => {
+      toast(S.lang === 'km' ? `បានចម្លងកូដរចនា: ${code} 📋` : `Design code copied: ${code} 📋`);
+    }).catch(() => fallbackCopyStudioCode(code));
+  } else {
+    fallbackCopyStudioCode(code);
+  }
+}
+
+function fallbackCopyStudioCode(code) {
+  const ta = document.createElement('textarea');
+  ta.value = code;
+  ta.style.position = 'fixed';
+  ta.style.left = '-9999px';
+  document.body.appendChild(ta);
+  ta.select();
+  try {
+    document.execCommand('copy');
+    toast(S.lang === 'km' ? `បានចម្លងកូដ: ${code} 📋` : `Code copied: ${code} 📋`);
+  } catch (err) {
+    prompt(S.lang === 'km' ? 'កូដរចនារបស់អ្នក:' : 'Your Design Code:', code);
+  }
+  document.body.removeChild(ta);
+}
+
+function loadStudioDesignCode() {
+  const inp = $('#studioLoadCodeInput');
+  if (!inp) return;
+  const raw = inp.value.trim().replace(/-/g, '').toLowerCase();
+  if (!raw || raw.length % 2 !== 0) {
+    return toast(S.lang === 'km' ? 'កូដមិនត្រឹមត្រូវ (Invalid code)' : 'Invalid design code format');
+  }
+  const all = SRDB.charms(true);
+  const newCharms = [];
+  for (let i = 0; i < raw.length; i += 2) {
+    const chunk = raw.substring(i, i + 2);
+    const idx = parseInt(chunk, 36);
+    const ch = all[idx];
+    if (ch) {
+      newCharms.push({
+        uid: 'lk_' + Math.random().toString(36).substr(2, 9),
+        id: ch.id,
+        name: ch.name,
+        category: ch.category || 'Plain',
+        price: parseFloat(ch.price) || 0.75,
+        price_khr: parseInt(ch.price_khr) || Math.round((parseFloat(ch.price) || 0.75) * 4000),
+        image: ch.image,
+        stock: ch.stock !== undefined ? ch.stock : 99
+      });
+    }
+  }
+  if (newCharms.length) {
+    studioCharms = newCharms;
+    studioSelectedUids = [];
+    saveStudioCharms();
+    renderStudioRunway();
+    inp.value = '';
+    toast(S.lang === 'km' ? `បានដាក់កូដជោគជ័យ (${newCharms.length} គ្រាប់) 📥` : `Loaded ${newCharms.length} charms from code! 📥`);
+    playChime('success');
+  } else {
+    toast(S.lang === 'km' ? 'រកមិនឃើញត្បូងតាមកូដនេះទេ' : 'No matching charms found for this code');
+  }
+}
+
+function clearStudioBracelet() {
+  if (!studioCharms.length) return;
+  const isKm = S.lang === 'km';
+  if (confirm(isKm ? 'តើអ្នកពិតជាចង់ជម្រះការរចនាខ្សែដៃនេះមែនទេ?' : 'Clear current bracelet design?')) {
+    studioCharms = [];
+    studioSelectedUids = [];
+    saveStudioCharms();
+    renderStudioRunway();
+    toast(isKm ? 'បានជម្រះខ្សែដៃរួចរាល់ ↺' : 'Bracelet runway reset ↺');
+  }
+}
+
+function duplicateStudioSelected() {
+  if (!studioSelectedUids.length) return;
+  const itemsToDup = studioCharms.filter(c => studioSelectedUids.includes(c.uid));
+  let maxIdx = -1;
+  studioCharms.forEach((c, i) => { if (studioSelectedUids.includes(c.uid)) maxIdx = i; });
+  const duplicated = itemsToDup.map(c => ({
+    ...c,
+    uid: 'lk_' + Math.random().toString(36).substr(2, 9)
+  }));
+  studioCharms.splice(maxIdx + 1, 0, ...duplicated);
+  studioSelectedUids = duplicated.map(c => c.uid);
+  saveStudioCharms();
+  renderStudioRunway();
+  toast(S.lang === 'km' ? `បានចម្លង ${duplicated.length} គ្រាប់ 📋` : `Duplicated ${duplicated.length} charm(s) 📋`);
+  playChime('success');
+}
+
+function deleteStudioSelected() {
+  if (!studioSelectedUids.length) return;
+  const count = studioSelectedUids.length;
+  studioCharms = studioCharms.filter(c => !studioSelectedUids.includes(c.uid));
+  studioSelectedUids = [];
+  saveStudioCharms();
+  renderStudioRunway();
+  toast(S.lang === 'km' ? `បានលុប ${count} គ្រាប់ 🗑️` : `Removed ${count} charm(s) 🗑️`);
+}
+
+function removeStudioCharm(uid, e) {
+  if (e) { e.stopPropagation(); e.preventDefault(); }
+  studioCharms = studioCharms.filter(c => c.uid !== uid);
+  studioSelectedUids = studioSelectedUids.filter(id => id !== uid);
+  saveStudioCharms();
+  renderStudioRunway();
+}
+
+function toggleStudioLinkSelection(uid) {
+  if (studioSelectedUids.includes(uid)) {
+    studioSelectedUids = [];
+  } else {
+    studioSelectedUids = [uid];
+  }
+  renderStudioRunway();
+}
+
+function onStudioLinkPointerDown(e, uid, index) {
+  if (e.target.closest('.link-remove-btn')) return;
+  const slot = e.currentTarget;
+  studioDragItem = slot;
+  studioDragStartX = e.clientX;
+  studioDragCurrentX = e.clientX;
+  studioDragStartIndex = index;
+  studioDragHasMoved = false;
+
+  try { slot.setPointerCapture(e.pointerId); } catch (err) {}
+  document.addEventListener('pointermove', onStudioLinkPointerMove);
+  document.addEventListener('pointerup', onStudioLinkPointerUp);
+}
+
+function onStudioLinkPointerMove(e) {
+  if (!studioDragItem) return;
+  const deltaX = e.clientX - studioDragStartX;
+  if (Math.abs(deltaX) > 8) studioDragHasMoved = true;
+
+  if (studioDragHasMoved) {
+    studioDragCurrentX = e.clientX;
+    studioDragItem.classList.add('is-dragging');
+    studioDragItem.style.transform = `translateX(${deltaX}px) scale(1.1)`;
+    const itemWidth = studioDragItem.offsetWidth || 54;
+    const indexShift = Math.round(deltaX / itemWidth);
+    const newIndex = Math.max(0, Math.min(studioCharms.length - 1, studioDragStartIndex + indexShift));
+
+    const slots = document.querySelectorAll('.bracelet-link-slot');
+    slots.forEach((item, idx) => {
+      if (item === studioDragItem) return;
+      let shift = 0;
+      if (studioDragStartIndex < newIndex) {
+        if (idx > studioDragStartIndex && idx <= newIndex) shift = -100;
+      } else if (studioDragStartIndex > newIndex) {
+        if (idx < studioDragStartIndex && idx >= newIndex) shift = 100;
+      }
+      item.style.transform = `translateX(${shift}%)`;
+    });
+  }
+}
+
+function onStudioLinkPointerUp(e) {
+  if (!studioDragItem) return;
+  const uid = studioDragItem.getAttribute('data-uid');
+
+  if (!studioDragHasMoved) {
+    toggleStudioLinkSelection(uid);
+  } else {
+    const itemWidth = studioDragItem.offsetWidth || 54;
+    const deltaX = studioDragCurrentX - studioDragStartX;
+    const indexShift = Math.round(deltaX / itemWidth);
+    const newIndex = Math.max(0, Math.min(studioCharms.length - 1, studioDragStartIndex + indexShift));
+
+    if (newIndex !== studioDragStartIndex && newIndex >= 0 && newIndex < studioCharms.length) {
+      const moved = studioCharms.splice(studioDragStartIndex, 1)[0];
+      studioCharms.splice(newIndex, 0, moved);
+      saveStudioCharms();
+    }
+  }
+
+  studioDragItem.classList.remove('is-dragging');
+  studioDragItem.style.transform = '';
+  document.querySelectorAll('.bracelet-link-slot').forEach(item => { item.style.transform = ''; });
+
+  studioDragItem = null;
+  document.removeEventListener('pointermove', onStudioLinkPointerMove);
+  document.removeEventListener('pointerup', onStudioLinkPointerUp);
+  renderStudioRunway();
+}
+
+function scrollStudioRunway(delta) {
+  const rw = $('#studioTrackRunway');
+  if (rw) rw.scrollBy({ left: delta, behavior: 'smooth' });
+}
+
+function setStudioPkg(pkgType) {
+  studioPkg = pkgType;
+  document.querySelectorAll('.pkg-option-card').forEach(el => {
+    el.classList.toggle('active', el.dataset.pkg === pkgType);
+  });
+  renderStudioRunway();
+}
+
+function addStudioCharm(id) {
+  const ch = SRDB.charm(id);
+  if (!ch) return;
+  if (ch.stock !== undefined && ch.stock <= 0) {
+    return toast(S.lang === 'km' ? 'គ្រាប់ត្បូងនេះអស់ពីស្តុកហើយ' : 'This charm is currently out of stock');
+  }
+  const newCharm = {
+    uid: 'lk_' + Math.random().toString(36).substr(2, 9),
+    id: ch.id,
+    name: ch.name,
+    category: ch.category || 'Plain',
+    price: parseFloat(ch.price) || 0.75,
+    price_khr: parseInt(ch.price_khr) || Math.round((parseFloat(ch.price) || 0.75) * 4000),
+    image: ch.image,
+    stock: ch.stock !== undefined ? ch.stock : 99
+  };
+  studioCharms.push(newCharm);
+  studioSelectedUids = [newCharm.uid];
+  saveStudioCharms();
+  renderStudioRunway();
+  playChime('success');
+
+  setTimeout(() => {
+    const rw = $('#studioTrackRunway');
+    if (rw) rw.scrollTo({ left: rw.scrollWidth, behavior: 'smooth' });
+  }, 40);
+}
+
+function addRandomStudioCharm() {
+  const available = SRDB.charms().filter(c => (c.stock === undefined || c.stock > 0));
+  if (!available.length) return toast(S.lang === 'km' ? 'មិនមានត្បូងក្នុងស្តុកទេ' : 'No charms available in stock');
+  const pick = available[Math.floor(Math.random() * available.length)];
+  addStudioCharm(pick.id);
+  toast(S.lang === 'km' ? `បានបន្ថែម ${pick.name} 🎲` : `Added random: ${pick.name} 🎲`);
+}
+
+function openStudioCharmZoom(id) {
+  const ch = SRDB.charm(id);
+  if (!ch) return;
+  const isKm = S.lang === 'km';
+  const modal = $('#studioCharmZoomModal');
+  if (!modal) return;
+  $('#studioZoomImg').src = ch.image;
+  $('#studioZoomName').textContent = ch.name;
+  $('#studioZoomCat').textContent = `${isKm ? 'ប្រភេទ' : 'Category'}: ${ch.category || 'Plain'}`;
+  $('#studioZoomPrice').textContent = `${(ch.price_khr || Math.round((ch.price || 0.75) * 4000)).toLocaleString()}៛ (${money(ch.price || 0.75)})`;
+  $('#studioZoomAddBtn').onclick = () => {
+    closeStudioCharmZoom();
+    addStudioCharm(ch.id);
+  };
+  modal.style.display = 'flex';
+}
+
+function closeStudioCharmZoom() {
+  const modal = $('#studioCharmZoomModal');
+  if (modal) modal.style.display = 'none';
+}
+
+function onStudioCatFilter(cat) {
+  studioCatFilter = cat;
+  document.querySelectorAll('.charm-cat-pill').forEach(el => {
+    el.classList.toggle('active', el.dataset.cat.toLowerCase() === cat.toLowerCase());
+  });
+  renderStudioCatalog();
+}
+
+function onStudioSearchInput(val) {
+  studioSearchQuery = val.trim().toLowerCase();
+  renderStudioCatalog();
+}
+
+function renderStudioCatalog() {
+  const grid = $('#studioCharmsGrid');
+  if (!grid) return;
+  const all = SRDB.charms(true);
+  const q = studioSearchQuery;
+  const cat = studioCatFilter;
+
+  const filtered = all.filter(ch => {
+    if (ch.active === 0) return false;
+    if (cat !== 'all') {
+      const cCat = (ch.category || '').toLowerCase();
+      if (!cCat.includes(cat.toLowerCase())) return false;
+    }
+    if (q) {
+      const name = (ch.name || '').toLowerCase();
+      const id = (ch.id || '').toLowerCase();
+      const cCat = (ch.category || '').toLowerCase();
+      if (!name.includes(q) && !id.includes(q) && !cCat.includes(q)) return false;
+    }
+    return true;
+  });
+
+  if (!filtered.length) {
+    grid.innerHTML = `
+      <div style="grid-column:1/-1;text-align:center;padding:30px 10px;opacity:0.6">
+        <div style="font-size:2rem;margin-bottom:6px">🔍</div>
+        <p class="muted small">${S.lang === 'km' ? 'រកមិនឃើញគ្រាប់ត្បូងដែលត្រូវនឹងលក្ខខណ្ឌស្វែងរកទេ' : 'No charms match your search or filter'}</p>
+      </div>`;
+    return;
+  }
+
+  grid.innerHTML = filtered.map(ch => {
+    const isOut = (ch.stock !== undefined && ch.stock <= 0);
+    const khr = ch.price_khr || Math.round((ch.price || 0.75) * 4000);
+    return `
+      <div class="charm-card-item ${isOut ? 'out-of-stock' : ''}" 
+           onclick="if(!${isOut}) addStudioCharm('${ch.id}')"
+           title="${esc(ch.name)}">
+        ${isOut ? `<span style="position:absolute;top:4px;right:4px;background:#ef4444;color:#fff;font-size:0.55rem;font-weight:800;padding:1px 4px;border-radius:4px;z-index:2">OUT</span>` : ''}
+        <button type="button" onclick="event.stopPropagation();openStudioCharmZoom('${ch.id}')" 
+                style="position:absolute;top:4px;left:4px;width:20px;height:20px;border-radius:50%;background:rgba(0,0,0,0.4);border:none;color:#fff;font-size:10px;display:flex;align-items:center;justify-content:center;cursor:pointer;z-index:2" title="Zoom">
+          🔍
+        </button>
+        <div class="charm-card-thumb">
+          <img src="${ch.image || 'logo.jpg'}" alt="${esc(ch.name)}" loading="lazy" onerror="this.src='logo.jpg'">
+        </div>
+        <span class="charm-card-title">${esc(ch.name)}</span>
+        <span class="charm-card-price">${khr.toLocaleString()}៛</span>
+      </div>`;
+  }).join('');
+}
+
+function renderStudioRunway() {
   const c = cfg();
   const isKm = S.lang === 'km';
+  const runway = $('#studioTrackRunway');
+  if (!runway) return;
+
+  const count = studioCharms.length;
+  const charmsTotalUSD = studioCharms.reduce((sum, ch) => sum + (parseFloat(ch.price) || c.charmPrice || 0.75), 0);
+  const charmsTotalKHR = studioCharms.reduce((sum, ch) => sum + (parseInt(ch.price_khr) || Math.round((parseFloat(ch.price) || 0.75) * 4000)), 0);
+
+  const pkgFeeUSD = studioPkg === 'premium' ? (c.packagingFee || 1.25) : 0;
+  const pkgFeeKHR = studioPkg === 'premium' ? Math.round((c.packagingFee || 1.25) * 4000) : 0;
+
+  const grandUSD = (c.customBasePrice || 0) + charmsTotalUSD + pkgFeeUSD;
+  const grandKHR = Math.round((c.customBasePrice || 0) * 4000) + charmsTotalKHR + pkgFeeKHR;
+
+  // Header badges & subtotal
+  const badgeCount = $('#studioHeaderCount');
+  if (badgeCount) badgeCount.textContent = `${count} ${isKm ? 'គ្រាប់' : 'Charms'}`;
+
+  const badgePrice = $('#studioHeaderPrice');
+  if (badgePrice) badgePrice.textContent = `${grandKHR.toLocaleString()}៛ (${money(grandUSD)})`;
+
+  // Action buttons
+  const dupBtn = $('#studioDuplicateBtn');
+  const delBtn = $('#studioDeleteBtn');
+  const selCount = studioSelectedUids.length;
+  if (dupBtn) dupBtn.style.display = selCount ? 'inline-flex' : 'none';
+  if (delBtn) delBtn.style.display = selCount ? 'inline-flex' : 'none';
+
+  // Share Code
+  const codeInp = $('#studioShareCodeInput');
+  if (codeInp) codeInp.value = getStudioDesignCode();
+
+  // Runway Links
+  if (count === 0) {
+    runway.innerHTML = `
+      <div class="empty-track-placeholder" onclick="$('#studioCharmsGrid')?.scrollIntoView({behavior:'smooth'})">
+        <div class="starter-dummy-links">
+          <div class="dummy-link">＋</div>
+          <div class="dummy-link">＋</div>
+          <div class="dummy-link">＋</div>
+          <div class="dummy-link">＋</div>
+        </div>
+        <p style="font-weight:700;margin:0;font-size:0.9rem;color:var(--text)">
+          ✨ ${isKm ? 'ចាប់ផ្តើមរចនាខ្សែដៃរបស់អ្នក' : 'Start Designing Your Bracelet'}
+        </p>
+        <span class="muted small">
+          ${isKm ? 'ចុចលើគ្រាប់ត្បូងខាងក្រោមដើម្បីដាក់ចូលខ្សែដៃ (Click any charm below)' : 'Select charm links below to assemble onto the runway'}
+        </span>
+      </div>`;
+  } else {
+    runway.innerHTML = studioCharms.map((ch, idx) => {
+      const isSel = studioSelectedUids.includes(ch.uid);
+      return `
+        <div class="bracelet-link-slot ${isSel ? 'selected' : ''}" 
+             data-uid="${ch.uid}"
+             onpointerdown="onStudioLinkPointerDown(event, '${ch.uid}', ${idx})"
+             title="${esc(ch.name)} (${idx + 1})">
+          <div class="link-metal-frame">
+            <img src="${ch.image || 'logo.jpg'}" alt="${esc(ch.name)}" draggable="false">
+          </div>
+          <div class="link-connector"></div>
+          <button type="button" class="link-remove-btn" 
+                  onpointerdown="removeStudioCharm('${ch.uid}', event)" 
+                  title="${isKm ? 'លុបគ្រាប់នេះ' : 'Remove link'}">✕</button>
+        </div>`;
+    }).join('');
+  }
+
+  // Sticky bottom summary bar elements
+  const sumCount = $('#studioSummaryCount');
+  if (sumCount) sumCount.textContent = `${count} ${isKm ? 'គ្រាប់' : 'Links'}`;
+
+  const sumPrice = $('#studioSummaryPrice');
+  if (sumPrice) sumPrice.textContent = `${grandKHR.toLocaleString()}៛ (${money(grandUSD)})`;
+
+  const addCartBtn = $('#studioAddToCartBtn');
+  if (addCartBtn) {
+    addCartBtn.disabled = count === 0;
+    addCartBtn.style.opacity = count === 0 ? '0.5' : '1';
+    addCartBtn.style.cursor = count === 0 ? 'not-allowed' : 'pointer';
+  }
+}
+
+function addStudioBraceletToCart() {
+  if (!studioCharms.length) {
+    return toast(S.lang === 'km' ? 'សូមជ្រើសរើសត្បូងយ៉ាងហោចណាស់មួយ!' : 'Please add at least 1 charm link to your bracelet!');
+  }
+  const c = cfg();
+  const isKm = S.lang === 'km';
+  const pkgTitle = studioPkg === 'premium'
+    ? (isKm ? 'ប្រអប់កាដូ Premium (+5,000៛)' : 'Luxury Gift Box (+$1.25)')
+    : (isKm ? 'ថង់ធម្មតា (ឥតគិតថ្លៃ)' : 'Standard Pouch (Free)');
+  const code = getStudioDesignCode();
+
+  const charmsTotalUSD = studioCharms.reduce((sum, ch) => sum + (parseFloat(ch.price) || c.charmPrice || 0.75), 0);
+  const pkgFeeUSD = studioPkg === 'premium' ? (c.packagingFee || 1.25) : 0;
+  const grandUSD = (c.customBasePrice || 0) + charmsTotalUSD + pkgFeeUSD;
+  const grandKHR = Math.round(grandUSD * 4000);
+
+  const customItem = {
+    name: isKm ? `ខ្សែដៃអ៊ីតាលីកែច្នៃ (${studioCharms.length} គ្រាប់)` : `Custom Italy Bracelet (${studioCharms.length} Charms)`,
+    desc: `Code: ${code} • ${pkgTitle}`,
+    price: grandUSD,
+    priceKHR: grandKHR,
+    pt: c.customPt || 5,
+    icon: '🔗',
+    image: studioCharms[0]?.image || 'logo.jpg',
+    qty: 1,
+    charms: [...studioCharms],
+    code: code,
+    pkg: studioPkg
+  };
+
+  addToCart(null, customItem);
+  playChime('success');
+  toast(isKm ? 'បានដាក់ខ្សែដៃចូលកន្ត្រកជោគជ័យ! 🛒' : 'Custom Italy Bracelet added to Cart! 🛒');
+}
+
+function customizer() {
+  initStudioCharms();
+  const c = cfg();
+  const isKm = S.lang === 'km';
+  const categories = SRDB.charmCategories();
+  const allCharms = SRDB.charms(true);
 
   view(`
-  <div class="glass panel" style="text-align:center;padding:50px 20px;max-width:760px;margin:20px auto;border-radius:24px">
-    <div style="width:72px;height:72px;border-radius:50%;background:rgba(234,88,12,0.12);color:#ea580c;display:flex;align-items:center;justify-content:center;font-size:2.2rem;margin:0 auto 16px">
-      🔗
-    </div>
-    <h2 class="kh" style="font-size:1.6rem;color:#ea580c">
-      ${isKm ? 'ស្ទូឌីយោរចនាខ្សែដៃអ៊ីតាលី' : 'Custom Italy Bracelet Studio'}
-    </h2>
-    <p class="muted" style="margin:10px auto 20px;max-width:540px;line-height:1.6">
-      ${isKm ? 'រចនាខ្សែដៃអ៊ីតាលីរបស់អ្នកផ្ទាល់ដោយជ្រើសរើសត្បូង អូសប្តូរទីតាំង (Drag & Drop) ចម្លងត្បូង មើលរូបភាពមុនកម្ម៉ង់ និងជ្រើសរើសការវេចខ្ចប់ពិសេស' : 'Build your own Italian charm bracelet link-by-link with live interactive preview, drag-and-drop link reordering, design codes, and luxury gift packaging.'}
-    </p>
-
-    <div style="display:flex;gap:12px;justify-content:center;flex-wrap:wrap;margin-bottom:28px">
-      <div class="glass" style="padding:12px 18px;border-radius:12px;text-align:left;min-width:160px">
-        <span class="muted small">${isKm ? 'តម្លៃខ្សែចាប់ផ្តើម' : 'Base Band'}</span>
-        <h4 style="margin:2px 0 0;color:#ea580c">${money(c.customBasePrice)} (${Math.round(c.customBasePrice * 4000).toLocaleString()}៛)</h4>
+  <div class="customizer-container" style="max-width:980px;margin:0 auto;padding-bottom:80px">
+    <!-- Header Title Bar -->
+    <div class="section-title" style="margin-bottom:16px">
+      <div>
+        <div style="display:inline-flex;align-items:center;gap:8px;margin-bottom:4px">
+          <span style="font-size:1.6rem">🔗</span>
+          <h2 class="kh" style="margin:0;font-size:1.5rem;color:#ea580c">
+            ${isKm ? 'ស្ទូឌីយោរចនាខ្សែដៃអ៊ីតាលី' : 'Custom Italy Charm Studio'}
+          </h2>
+        </div>
+        <p class="muted" style="margin:2px 0 0;font-size:0.85rem">
+          ${isKm ? 'រចនាខ្សែដៃផ្ទាល់ខ្លួនរបស់អ្នក • អូសដើម្បីប្តូរទីតាំង (Drag & Drop) • ចម្លង/លុបគ្រាប់' : 'Modular Stainless Steel Runway • Drag to Reorder • Real Charm Catalog'}
+        </p>
       </div>
-      <div class="glass" style="padding:12px 18px;border-radius:12px;text-align:left;min-width:160px">
-        <span class="muted small">${isKm ? 'តម្លៃត្បូងនីមួយៗ' : 'Charm Links'}</span>
-        <h4 style="margin:2px 0 0;color:#22c55e">3,000៛ (${money(c.charmPrice || 0.75)})</h4>
-      </div>
-      <div class="glass" style="padding:12px 18px;border-radius:12px;text-align:left;min-width:160px">
-        <span class="muted small">${isKm ? 'ពិន្ទុរង្វាន់' : 'Loyalty Points'}</span>
-        <h4 style="margin:2px 0 0;color:#3b82f6">+${c.customPt || 5} pt</h4>
+      <div style="display:flex;gap:8px;align-items:center">
+        <button class="btn ghost sm" data-nav="home">${t('backToHome')}</button>
       </div>
     </div>
 
-    <div style="display:flex;gap:14px;justify-content:center;flex-wrap:wrap">
-      <a href="custom-bracelet" class="btn primary" style="font-size:1.05rem;padding:14px 28px;text-decoration:none;display:inline-flex;align-items:center;gap:8px;box-shadow:0 10px 25px rgba(234,88,12,0.3)">
-        ✨ ${isKm ? 'ចាប់ផ្តើមរចនាខ្សែដៃឥឡូវនេះ (Open Studio)' : 'Launch Bracelet Studio Now'} ➔
-      </a>
-      <button class="btn ghost" data-nav="home" style="padding:14px 20px">${t('backToHome')}</button>
+    <!-- Size Recommendation & Pricing Strip -->
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px;align-items:center">
+      <div class="glass" style="padding:6px 14px;border-radius:99px;font-size:0.78rem;display:inline-flex;align-items:center;gap:6px">
+        <span>💡</span>
+        <span>${isKm ? 'ទំហំកដៃទូទៅ <b>16 ទៅ 18 គ្រាប់</b> (Standard wrist: 16–18 links)' : 'Standard wrist fit: <b>16–18 links</b>'}</span>
+      </div>
+      <div class="glass" style="padding:6px 14px;border-radius:99px;font-size:0.78rem;display:inline-flex;align-items:center;gap:6px;color:#22c55e">
+        <span>💎</span>
+        <span>${isKm ? 'គ្រាប់នីមួយៗ 3,000៛ ($0.75)' : 'Link price: 3,000៛ ($0.75)'}</span>
+      </div>
+      <div class="glass" style="padding:6px 14px;border-radius:99px;font-size:0.78rem;display:inline-flex;align-items:center;gap:6px;color:#3b82f6">
+        <span>⭐</span>
+        <span>+${c.customPt || 5} ${t('pointsPlus')}</span>
+      </div>
+    </div>
+
+    <!-- Main Workspace Runway Panel -->
+    <div class="glass panel" style="padding:18px 20px;border-radius:20px;margin-bottom:20px">
+      <!-- Runway Top Action Toolbar -->
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;flex-wrap:wrap;gap:10px">
+        <div style="display:flex;align-items:center;gap:12px">
+          <div>
+            <span class="muted small">${isKm ? 'ចំនួនគ្រាប់' : 'Links'}</span>
+            <div id="studioHeaderCount" style="font-size:1.15rem;font-weight:800;color:var(--text);line-height:1.2">
+              0 ${isKm ? 'គ្រាប់' : 'Charms'}
+            </div>
+          </div>
+          <div style="width:1px;height:24px;background:var(--border)"></div>
+          <div>
+            <span class="muted small">${isKm ? 'តម្លៃសរុប' : 'Subtotal'}</span>
+            <div id="studioHeaderPrice" style="font-size:1.15rem;font-weight:800;color:#ea580c;line-height:1.2">
+              0៛ ($0.00)
+            </div>
+          </div>
+        </div>
+
+        <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">
+          <button id="studioDuplicateBtn" class="studio-action-btn" style="display:none;color:#3b82f6;border-color:rgba(59,130,246,0.3)" onclick="duplicateStudioSelected()">
+            📋 ${isKm ? 'ចម្លង' : 'Duplicate'}
+          </button>
+          <button id="studioDeleteBtn" class="studio-action-btn danger" style="display:none" onclick="deleteStudioSelected()">
+            🗑️ ${isKm ? 'លុប' : 'Delete'}
+          </button>
+          <button class="studio-action-btn" onclick="clearStudioBracelet()">
+            ↺ ${isKm ? 'ជម្រះ' : 'Reset'}
+          </button>
+          <div style="display:flex;gap:4px;margin-left:4px">
+            <button class="track-scroll-btn" onclick="scrollStudioRunway(-140)" title="Scroll Left">‹</button>
+            <button class="track-scroll-btn" onclick="scrollStudioRunway(140)" title="Scroll Right">›</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Modular Bracelet Runway -->
+      <div class="bracelet-track-wrapper">
+        <div class="bracelet-track-rails"></div>
+        <div id="studioTrackRunway" class="bracelet-track-runway" onclick="if(event.target.id==='studioTrackRunway'){studioSelectedUids=[];renderStudioRunway();}">
+          <!-- Links rendered dynamically -->
+        </div>
+      </div>
+
+      <!-- Interactive gesture hint -->
+      <p class="muted small" style="text-align:center;margin:10px 0 0;font-size:0.75rem">
+        🖐️ ${isKm ? 'ចុចជាប់ដើម្បីអូសប្តូរទីតាំង (Hold & Drag) • ចុចម្ដងដើម្បីជ្រើសរើស/ចម្លង' : 'Hold & Drag links horizontally to reorder • Tap link to select / duplicate / delete'}
+      </p>
+
+      <!-- Design Code Bar -->
+      <div class="studio-code-bar">
+        <div class="studio-code-box">
+          <input type="text" id="studioShareCodeInput" class="studio-code-input" readonly placeholder="DESIGN-CODE">
+          <button type="button" class="btn ghost sm" onclick="copyStudioDesignCode()" title="Copy code">
+            📋 ${isKm ? 'ចម្លង' : 'Copy'}
+          </button>
+        </div>
+        <div class="studio-code-box">
+          <input type="text" id="studioLoadCodeInput" class="studio-code-input" placeholder="${isKm ? 'ដាក់លេខកូដដើម្បីរចនាបន្ត...' : 'Paste design code to load...'}" onkeydown="if(event.key==='Enter')loadStudioDesignCode()">
+          <button type="button" class="btn primary sm" onclick="loadStudioDesignCode()">
+            📥 ${isKm ? 'ដាក់កូដ' : 'Load'}
+          </button>
+        </div>
+      </div>
+
+      <!-- Packaging Options Selector -->
+      <div style="margin-top:20px;border-top:1px solid var(--border);padding-top:16px">
+        <span class="muted small" style="font-weight:700;display:block;margin-bottom:8px">
+          📦 ${isKm ? 'ជ្រើសរើសការវេចខ្ចប់ (Select Packaging)' : 'Packaging Options'}
+        </span>
+        <div class="packaging-cards-row">
+          <div class="pkg-option-card ${studioPkg === 'normal' ? 'active' : ''}" data-pkg="normal" onclick="setStudioPkg('normal')">
+            <div style="display:flex;align-items:center;gap:10px">
+              <span style="font-size:1.6rem">🛍️</span>
+              <div>
+                <b style="font-size:0.85rem">${isKm ? 'ថង់ធម្មតា (Normal Bag)' : 'Standard Pouch'}</b>
+                <p class="muted small" style="margin:2px 0 0">${isKm ? 'វេចខ្ចប់ស្តង់ដារ' : 'Eco pouch packaging'}</p>
+              </div>
+            </div>
+            <span style="color:#22c55e;font-weight:800;font-size:0.85rem">${isKm ? 'ឥតគិតថ្លៃ' : 'FREE'}</span>
+          </div>
+
+          <div class="pkg-option-card ${studioPkg === 'premium' ? 'active' : ''}" data-pkg="premium" onclick="setStudioPkg('premium')">
+            <div style="display:flex;align-items:center;gap:10px">
+              <span style="font-size:1.6rem">🎁</span>
+              <div>
+                <b style="font-size:0.85rem">${isKm ? 'ប្រអប់ Premium (Gift Box)' : 'Luxury Gift Box'}</b>
+                <p class="muted small" style="margin:2px 0 0">${isKm ? 'សម្រាប់កាដូពិសេស' : 'Premium gift presentation'}</p>
+              </div>
+            </div>
+            <span style="color:#ea580c;font-weight:800;font-size:0.85rem">+5,000៛ (${money(c.packagingFee || 1.25)})</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Charms Catalog Section -->
+    <div class="glass panel charm-catalog-section" style="padding:18px 20px;border-radius:20px">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;flex-wrap:wrap;gap:10px">
+        <h3 style="margin:0;font-size:1.15rem;display:flex;align-items:center;gap:8px">
+          <span>💎</span>
+          <span>${isKm ? 'កាតាឡុកគ្រាប់ត្បូងអ៊ីតាលី' : 'Italy Charms Catalog'}</span>
+        </h3>
+        <div style="position:relative;max-width:240px;width:100%">
+          <input type="text" id="studioSearchInput" placeholder="${isKm ? '🔍 ស្វែងរកត្បូង...' : '🔍 Search charms...'}" 
+                 value="${esc(studioSearchQuery)}"
+                 oninput="onStudioSearchInput(this.value)"
+                 style="padding:6px 12px;font-size:0.82rem;border-radius:99px;width:100%">
+        </div>
+      </div>
+
+      <!-- Category Filter Pills Bar -->
+      <div id="studioCatPills" class="charm-cat-pills-bar">
+        <button type="button" class="charm-cat-pill ${studioCatFilter === 'all' ? 'active' : ''}" data-cat="all" onclick="onStudioCatFilter('all')">
+          ${isKm ? 'ទាំងអស់' : 'All'} (${allCharms.length})
+        </button>
+        ${categories.map(cat => `
+          <button type="button" class="charm-cat-pill ${studioCatFilter.toLowerCase() === cat.category.toLowerCase() ? 'active' : ''}" data-cat="${esc(cat.category)}" onclick="onStudioCatFilter('${esc(cat.category)}')">
+            ${esc(cat.category)} (${cat.count})
+          </button>
+        `).join('')}
+      </div>
+
+      <!-- Charms Grid View -->
+      <div id="studioCharmsGrid" class="charm-cards-grid">
+        <!-- Rendered dynamically -->
+      </div>
+    </div>
+
+    <!-- Sticky Bottom Summary Bar -->
+    <div class="studio-summary-bar">
+      <div style="display:flex;align-items:center;gap:14px">
+        <div>
+          <span class="muted small">${isKm ? 'សរុបខ្សែដៃ' : 'Bracelet Total'}</span>
+          <div style="display:flex;align-items:baseline;gap:8px">
+            <span id="studioSummaryPrice" style="font-size:1.35rem;font-weight:800;color:#ea580c">0៛ ($0.00)</span>
+            <span id="studioSummaryCount" class="badge ok" style="font-size:0.75rem">0 ${isKm ? 'គ្រាប់' : 'Links'}</span>
+          </div>
+        </div>
+      </div>
+
+      <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+        <button type="button" class="btn ghost" onclick="addRandomStudioCharm()" title="${isKm ? 'បន្ថែមគ្រាប់ចៃដន្យ' : 'Add random charm'}">
+          🎲 ${isKm ? 'ចៃដន្យ' : 'Random'}
+        </button>
+        <button id="studioAddToCartBtn" type="button" class="btn primary" style="padding:12px 24px;font-size:0.95rem;box-shadow:0 8px 20px rgba(234,88,12,0.35)" onclick="addStudioBraceletToCart()">
+          🛒 ${isKm ? 'ដាក់ចូលកន្ត្រកទំនិញ' : 'Add Bracelet to Cart'}
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Charm Photo Zoom Modal -->
+  <div id="studioCharmZoomModal" class="studio-charm-zoom-modal" style="display:none" onclick="if(event.target===this)closeStudioCharmZoom()">
+    <div class="studio-charm-zoom-card">
+      <button type="button" onclick="closeStudioCharmZoom()" style="position:absolute;top:12px;right:12px;width:30px;height:30px;border-radius:50%;background:rgba(255,255,255,0.08);border:1px solid var(--border);color:var(--text);cursor:pointer;font-size:12px;display:flex;align-items:center;justify-content:center">✕</button>
+      <div style="width:160px;height:200px;margin:0 auto 16px;background:#fff;border-radius:12px;padding:8px;display:flex;align-items:center;justify-content:center;box-shadow:inset 0 2px 6px rgba(0,0,0,0.1)">
+        <img id="studioZoomImg" src="logo.jpg" alt="Charm" style="max-width:100%;max-height:100%;object-fit:contain;mix-blend-multiply">
+      </div>
+      <h3 id="studioZoomName" style="margin:0 0 4px;font-size:1.1rem;color:var(--text)">Charm Name</h3>
+      <p id="studioZoomCat" class="muted small" style="margin:0 0 10px">Category: Plain</p>
+      <div id="studioZoomPrice" style="font-size:1.2rem;font-weight:800;color:#ea580c;margin-bottom:16px">3,000៛ ($0.75)</div>
+      <button id="studioZoomAddBtn" type="button" class="btn primary" style="width:100%">
+        ＋ ${isKm ? 'បន្ថែមចូលខ្សែដៃ (Add to Bracelet)' : 'Add to Bracelet Runway'}
+      </button>
     </div>
   </div>`);
+
+  renderStudioRunway();
+  renderStudioCatalog();
 }
 
 function addCustom() {
-  const c = cfg();
-  addToCart(null, {
-    name: S.lang === 'km' ? 'ខ្សែដៃអ៊ីតាលីកែច្នៃ (Custom Italy Charm)' : 'Custom Italy Charm Bracelet',
-    desc: custom.join(' '),
-    price: c.customBasePrice + custom.length * c.charmPrice,
-    pt: c.customPt,
-    icon: '🔗',
-    qty: 1
-  });
-  custom = [];
-  customizer();
+  addStudioBraceletToCart();
 }
 
 function getSellerTelegramUrl() {
