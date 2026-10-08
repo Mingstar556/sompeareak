@@ -535,27 +535,52 @@ $('#modal').addEventListener('click', e => {
 
 const art = (p, grad) => p.image ? `<div class="art" style="background-image:url('${p.image}')"></div>` : `<div class="art" style="background:${grad || 'linear-gradient(135deg,#10b981,#059669)'}">🛍️</div>`;
 
+let _appAudioCtx = null;
+function getAppAudioContext() {
+  if (!_appAudioCtx) {
+    const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+    if (AudioContextClass) {
+      _appAudioCtx = new AudioContextClass();
+    }
+  }
+  if (_appAudioCtx && _appAudioCtx.state === 'suspended') {
+    _appAudioCtx.resume().catch(() => {});
+  }
+  return _appAudioCtx;
+}
+
+['click', 'keydown', 'touchstart'].forEach(evt => {
+  window.addEventListener(evt, () => {
+    if (_appAudioCtx && _appAudioCtx.state === 'suspended') {
+      _appAudioCtx.resume().catch(() => {});
+    }
+  }, { once: true, passive: true });
+});
+
 /* Audio feedback */
 function playChime(type = 'success') {
   try {
-    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    const ctx = getAppAudioContext();
+    if (!ctx) return;
+    const now = ctx.currentTime;
     const osc = ctx.createOscillator();
     const gain = ctx.createGain();
     osc.connect(gain);
     gain.connect(ctx.destination);
+    osc.type = 'sine';
     if (type === 'success') {
-      osc.frequency.setValueAtTime(587.33, ctx.currentTime);
-      osc.frequency.setValueAtTime(880, ctx.currentTime + 0.12);
-      gain.gain.setValueAtTime(0.18, ctx.currentTime);
-      gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.35);
-      osc.start();
-      osc.stop(ctx.currentTime + 0.35);
+      osc.frequency.setValueAtTime(587.33, now);
+      osc.frequency.setValueAtTime(880, now + 0.12);
+      gain.gain.setValueAtTime(0.18, now);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.35);
+      osc.start(now);
+      osc.stop(now + 0.35);
     } else {
-      osc.frequency.setValueAtTime(320, ctx.currentTime);
-      gain.gain.setValueAtTime(0.15, ctx.currentTime);
-      gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.25);
-      osc.start();
-      osc.stop(ctx.currentTime + 0.25);
+      osc.frequency.setValueAtTime(320, now);
+      gain.gain.setValueAtTime(0.15, now);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.25);
+      osc.start(now);
+      osc.stop(now + 0.25);
     }
   } catch (e) {}
 }
@@ -811,11 +836,42 @@ function applyLogo() {
 }
 
 // Zero-delay reactive sync across open tabs & live database changes
-SRDB.onChange(() => {
-  applyLogo();
-  checkOrderStatusChanges();
+SRDB.onChange((detail = {}) => {
+  const changed = detail.changed || {};
+  if (changed.settings) {
+    applyLogo();
+  }
+  if (changed.orders) {
+    checkOrderStatusChanges();
+  }
   updateHeader();
-  if (me() && !$('#app').classList.contains('hidden') && !document.activeElement.matches('input,select,textarea')) {
+
+  // If user is actively typing or inside a modal, do not disrupt
+  const isEditing = Boolean(document.activeElement && document.activeElement.matches('input,select,textarea'));
+  const isModalOpen = !$('#modal').classList.contains('hidden');
+  if (isEditing || isModalOpen) {
+    return;
+  }
+
+  const h = location.hash.slice(1) || 'home';
+
+  // NEVER disrupt customizer studio while customer is picking charms!
+  if (h === 'custom-bracelet') {
+    return;
+  }
+
+  // Only re-render if current route is affected by what actually changed
+  const shouldRerender =
+    detail.initial ||
+    !detail.changed ||
+    (h === 'orders' && changed.orders) ||
+    (h === 'rewards' && (changed.users || changed.settings)) ||
+    (h === 'profile' && changed.users) ||
+    (h === 'cart' && (changed.products || changed.charms)) ||
+    (h === 'home' && (changed.products || changed.categories || changed.settings)) ||
+    (changed.products && !['orders', 'rewards', 'profile', 'checkout'].includes(h));
+
+  if (me() && !$('#app').classList.contains('hidden') && shouldRerender) {
     route(false);
   }
 });

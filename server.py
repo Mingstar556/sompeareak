@@ -216,8 +216,10 @@ def response_pipeline_middleware(response):
     response.headers['X-Request-ID'] = req_id
     response.headers['X-Response-Time-Ms'] = str(duration_ms)
 
-    # 4. Structured Audit Log in Terminal
+    # 4. Structured Audit Log in Terminal (Skip successful high-frequency polling to keep terminal I/O zero-latency)
     if request.path.startswith('/api/'):
+        if request.path == '/api/sync/status' and response.status_code == 200:
+            return response
         tag = '[ADMIN REQ]' if client_type == 'admin' else '[CUSTOMER REQ]'
         status = response.status_code
         print(f"{tag} {request.method} {request.path} -> {status} ({duration_ms}ms) [IP: {request.remote_addr}, ID: {req_id}]")
@@ -248,6 +250,19 @@ def admin_page_redirect():
         'admin_portal': 'Please run the admin portal from the sompheareakAdmin repository (e.g. http://127.0.0.1:5500).',
         'api_status': 'Server and Database are active and synchronized.'
     }), 403
+
+
+# ================================================================
+# API: High-Performance Live Sync & Version Status (<1ms response)
+# ================================================================
+
+@app.route('/api/sync/status', methods=['GET'])
+def get_sync_status():
+    status = database.get_sync_status()
+    return jsonify({
+        'ok': True,
+        **status
+    })
 
 
 # ================================================================

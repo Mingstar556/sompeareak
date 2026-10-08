@@ -78,13 +78,27 @@ DEFAULT_CATEGORIES = [
 ]
 
 def get_db():
-    conn = sqlite3.connect(DB_PATH)
+    conn = sqlite3.connect(DB_PATH, timeout=20.0)
     conn.row_factory = sqlite3.Row
+    conn.execute("PRAGMA journal_mode = WAL")
+    conn.execute("PRAGMA synchronous = NORMAL")
+    conn.execute("PRAGMA busy_timeout = 20000")
     return conn
 
 def init_db():
     conn = get_db()
     c = conn.cursor()
+
+    # Sync versions table for high-performance delta polling
+    c.execute('''
+        CREATE TABLE IF NOT EXISTS sync_versions (
+            entity TEXT PRIMARY KEY,
+            version INTEGER DEFAULT 1,
+            updated_at TEXT
+        )
+    ''')
+    for ent in ('settings', 'categories', 'products', 'charms', 'orders', 'users', 'notifications'):
+        c.execute('INSERT OR IGNORE INTO sync_versions (entity, version, updated_at) VALUES (?, 1, ?)', (ent, datetime.now().isoformat()))
 
     # Settings table
     c.execute('''
@@ -233,6 +247,52 @@ def init_db():
 def now():
     return datetime.now().isoformat()
 
+def bump_version(entity, conn=None):
+    """Atomically increment the change version counter for a given entity."""
+    should_close = False
+    if conn is None:
+        conn = get_db()
+        should_close = True
+    c = conn.cursor()
+    c.execute('''
+        INSERT INTO sync_versions (entity, version, updated_at)
+        VALUES (?, 1, ?)
+        ON CONFLICT(entity) DO UPDATE SET version = version + 1, updated_at = ?
+    ''', (entity, now(), now()))
+    if should_close:
+        conn.commit()
+        conn.close()
+
+def get_sync_status():
+    """Return lightweight version markers and live badge counters (<1ms query)."""
+    conn = get_db()
+    c = conn.cursor()
+    c.execute('SELECT entity, version FROM sync_versions')
+    versions = {r['entity']: r['version'] for r in c.fetchall()}
+    for ent in ('settings', 'categories', 'products', 'charms', 'orders', 'users', 'notifications'):
+        if ent not in versions:
+            versions[ent] = 1
+
+    c.execute("SELECT COUNT(*) as cnt FROM orders WHERE status = 'Pending'")
+    pending_orders = c.fetchone()['cnt']
+
+    c.execute("SELECT COUNT(*) as cnt FROM orders")
+    total_orders = c.fetchone()['cnt']
+
+    c.execute("SELECT COUNT(*) as cnt FROM notifications WHERE read = 0")
+    unread_notifs = c.fetchone()['cnt']
+
+    conn.close()
+    return {
+        'versions': versions,
+        'meta': {
+            'pending_orders': pending_orders,
+            'total_orders': total_orders,
+            'unread_notifs': unread_notifs,
+            'server_time': int(datetime.now().timestamp())
+        }
+    }
+
 # --- Settings ---
 def get_settings():
     conn = get_db()
@@ -264,6 +324,7 @@ def save_settings(patch):
         if isinstance(v, (list, dict)):
             v = json.dumps(v)
         c.execute('INSERT OR REPLACE INTO settings (key, val) VALUES (?, ?)', (k, str(v)))
+    bump_version('settings', conn)
     conn.commit()
     conn.close()
     return get_settings()
@@ -319,6 +380,7 @@ def upsert_category(data):
             VALUES (?, ?, ?, ?, ?, ?, ?, ?)
         ''', (cat_id, name, kh, en, icon, grad, sort_order, now()))
 
+    bump_version('categories', conn)
     conn.commit()
     conn.close()
     return get_category(cat_id)
@@ -327,6 +389,7 @@ def delete_category(cat_id):
     conn = get_db()
     c = conn.cursor()
     c.execute('DELETE FROM categories WHERE id = ?', (cat_id,))
+    bump_version('categories', conn)
     conn.commit()
     conn.close()
     return True
@@ -392,6 +455,7 @@ def upsert_product(data):
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         ''', (prod_id, name, cat, price, discount, stock, pt, image, active, now()))
 
+    bump_version('products', conn)
     conn.commit()
     conn.close()
     return get_product(prod_id)
@@ -404,6 +468,7 @@ def adjust_stock(prod_id, delta):
     if row:
         new_stock = max(0, row['stock'] + delta)
         c.execute('UPDATE products SET stock = ? WHERE id = ?', (new_stock, prod_id))
+        bump_version('products', conn)
         conn.commit()
     conn.close()
     return get_product(prod_id)
@@ -412,6 +477,7 @@ def delete_product(prod_id):
     conn = get_db()
     c = conn.cursor()
     c.execute('DELETE FROM products WHERE id = ?', (prod_id,))
+    bump_version('products', conn)
     conn.commit()
     conn.close()
     return True
@@ -420,6 +486,7 @@ def clear_products():
     conn = get_db()
     c = conn.cursor()
     c.execute('DELETE FROM products')
+    bump_version('products', conn)
     conn.commit()
     conn.close()
     return True
@@ -583,6 +650,7 @@ def upsert_user(username, phone):
             VALUES (?, ?, ?, ?, ?, ?, ?, ?)
         ''', (u_id, uname, phone, '', 0, '[]', '[]', now()))
 
+    bump_version('users', conn)
     conn.commit()
     conn.close()
     return get_user(u_id)
@@ -606,6 +674,7 @@ def update_user(user_id, data):
     if fields:
         vals.append(user_id)
         c.execute(f'UPDATE users SET {", ".join(fields)} WHERE id = ?', vals)
+        bump_version('users', conn)
         conn.commit()
     conn.close()
     return get_user(user_id)
@@ -720,6 +789,11 @@ def place_order(order_data):
         VALUES (?, ?, ?, ?, ?, 0, ?)
     ''', (notif_id, 'receipt', order_id, user_id, f'New receipt #{order_id} from @{uname} • ${total:.2f}', created_at))
 
+    bump_version('orders', conn)
+    bump_version('notifications', conn)
+    if voucher:
+        bump_version('users', conn)
+
     conn.commit()
     conn.close()
     return get_order(order_id)
@@ -778,6 +852,11 @@ def approve_order(order_id):
         VALUES (?, ?, ?, ?, ?, 0, ?)
     ''', (notif_id, 'order_approved', order_id, user_id, f'Order #{order_id} was approved! +{earned} pt added to your balance.', decided_at))
 
+    bump_version('orders', conn)
+    bump_version('products', conn)
+    bump_version('users', conn)
+    bump_version('notifications', conn)
+
     conn.commit()
     conn.close()
     return get_order(order_id), None
@@ -813,6 +892,11 @@ def reject_order(order_id, note='Out of stock'):
         INSERT INTO notifications (id, type, order_id, user_id, text, read, created_at)
         VALUES (?, ?, ?, ?, ?, 0, ?)
     ''', (notif_id, 'order_rejected', order_id, user_id, f'Order #{order_id} was declined: {note}. Voucher refunded.', decided_at))
+
+    bump_version('orders', conn)
+    bump_version('notifications', conn)
+    if voucher_code:
+        bump_version('users', conn)
 
     conn.commit()
     conn.close()
@@ -861,6 +945,10 @@ def cancel_order(order_id, reason='Cancelled by admin'):
             c.execute('UPDATE users SET vouchers = ? WHERE id = ?', (json.dumps(vouchers), user_id))
 
     c.execute('UPDATE orders SET status = "Cancelled", note = ?, decided_at = ? WHERE id = ?', (reason, decided_at, order_id))
+    bump_version('orders', conn)
+    bump_version('products', conn)
+    bump_version('users', conn)
+    bump_version('notifications', conn)
     conn.commit()
     conn.close()
     return get_order(order_id), None
@@ -869,6 +957,7 @@ def set_order_status(order_id, status):
     conn = get_db()
     c = conn.cursor()
     c.execute('UPDATE orders SET status = ? WHERE id = ?', (status, order_id))
+    bump_version('orders', conn)
     conn.commit()
     conn.close()
     return get_order(order_id)
@@ -894,6 +983,7 @@ def mark_notifications_read(order_id=None):
         c.execute('UPDATE notifications SET read = 1 WHERE order_id = ?', (order_id,))
     else:
         c.execute('UPDATE notifications SET read = 1')
+    bump_version('notifications', conn)
     conn.commit()
     conn.close()
     return True
@@ -961,6 +1051,7 @@ def upsert_charm(data):
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         ''', (charm_id, name, category, price, price_khr, stock, image, sort_order, active, model_no, color, now()))
 
+    bump_version('charms', conn)
     conn.commit()
     conn.close()
     return get_charm(charm_id)
@@ -969,6 +1060,7 @@ def delete_charm(charm_id):
     conn = get_db()
     c = conn.cursor()
     c.execute('DELETE FROM charms WHERE id = ?', (charm_id,))
+    bump_version('charms', conn)
     conn.commit()
     conn.close()
     return True
@@ -980,6 +1072,7 @@ def adjust_charm_stock(charm_id, delta=None, new_stock=None):
         c.execute('UPDATE charms SET stock = ? WHERE id = ?', (max(0, int(new_stock)), charm_id))
     elif delta is not None:
         c.execute('UPDATE charms SET stock = MAX(0, stock + ?) WHERE id = ?', (int(delta), charm_id))
+    bump_version('charms', conn)
     conn.commit()
     conn.close()
     return get_charm(charm_id)
@@ -1014,6 +1107,7 @@ def seed_default_charms():
                 now()
             ))
             seeded_count += 1
+    bump_version('charms', conn)
     conn.commit()
     conn.close()
     return seeded_count
@@ -1022,6 +1116,7 @@ def clear_charms():
     conn = get_db()
     c = conn.cursor()
     c.execute('DELETE FROM charms')
+    bump_version('charms', conn)
     conn.commit()
     conn.close()
     return True
