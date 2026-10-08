@@ -699,7 +699,12 @@ applyTheme();
 function prefillRememberedLogin() {
   const rem = $('#rememberMeCheckbox');
   const isRemember = localStorage.getItem('sr_remember') !== 'false';
-  if (rem) rem.checked = isRemember;
+  if (rem) {
+    rem.checked = isRemember;
+    rem.onchange = () => {
+      localStorage.setItem('sr_remember', rem.checked ? 'true' : 'false');
+    };
+  }
   const savedUser = localStorage.getItem('sr_remembered_username');
   const savedPhone = localStorage.getItem('sr_remembered_phone');
   if (savedUser && $('#tgUser')) {
@@ -709,7 +714,32 @@ function prefillRememberedLogin() {
     $('#phoneInput').value = savedPhone;
   }
 }
+
+function tryAutoLoginRememberedUser() {
+  const isRemember = localStorage.getItem('sr_remember') !== 'false';
+  if (!isRemember) return false;
+  if (S.userId) {
+    enterApp();
+    return true;
+  }
+  const savedUser = localStorage.getItem('sr_remembered_username');
+  const savedPhone = localStorage.getItem('sr_remembered_phone');
+  if (savedUser && savedPhone) {
+    const existing = SRDB.users().find(u => u.username === savedUser || u.username === '@' + savedUser);
+    if (existing) {
+      S.userId = existing.id;
+    } else {
+      S.userId = 'u_' + savedUser;
+    }
+    save();
+    enterApp();
+    return true;
+  }
+  return false;
+}
+
 prefillRememberedLogin();
+tryAutoLoginRememberedUser();
 
 $('#tgLoginBtn').onclick = () => {
   let u = $('#tgUser').value.trim().replace(/^@/, '');
@@ -3034,4 +3064,6 @@ if (centerLogoBtnEl) {
 
 if (me()) {
   enterApp();
+} else {
+  tryAutoLoginRememberedUser();
 }
