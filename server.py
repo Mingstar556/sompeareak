@@ -1,11 +1,19 @@
 import os
 import sys
+
+if hasattr(sys.stdout, 'reconfigure'):
+    sys.stdout.reconfigure(encoding='utf-8', errors='replace')
+if hasattr(sys.stderr, 'reconfigure'):
+    sys.stderr.reconfigure(encoding='utf-8', errors='replace')
+
 import time
 import uuid
 import hmac
 import hashlib
 import base64
 import json
+import ipaddress
+from urllib.parse import urlparse
 from functools import wraps
 from flask import Flask, request, jsonify, send_from_directory, redirect, g, make_response
 import database
@@ -119,12 +127,28 @@ def load_allowed_origins() -> set:
 
 ALLOWED_ORIGINS = load_allowed_origins()
 
+def is_private_or_local_origin(origin_str: str) -> bool:
+    """Check if origin is localhost, loopback, or private LAN address (RFC 1918) for Wi-Fi mobile testing."""
+    try:
+        parsed = urlparse(origin_str)
+        hostname = (parsed.hostname or '').lower()
+        if not hostname:
+            return False
+        if hostname in ('localhost', '127.0.0.1', '::1'):
+            return True
+        ip = ipaddress.ip_address(hostname)
+        return ip.is_private or ip.is_loopback
+    except Exception:
+        return False
+
 def is_origin_allowed(origin_hdr: str | None) -> bool:
-    """Validate whether an Origin header matches authorized domains."""
-    if not origin_hdr:
-        return True # Non-browser or same-origin request
+    """Validate whether an Origin header matches authorized domains or private LAN during development."""
+    if not origin_hdr or origin_hdr == 'null':
+        return True # Non-browser, same-origin, or local mobile app request
     norm = origin_hdr.strip().rstrip('/').lower()
-    return norm in ALLOWED_ORIGINS
+    if norm in ALLOWED_ORIGINS:
+        return True
+    return is_private_or_local_origin(norm)
 
 # --- Admin Authentication & Rate Limiting Storage ---
 FAILED_PIN_ATTEMPTS = {}
@@ -774,18 +798,42 @@ def read_notifications():
 @app.route('/<path:filename>')
 def serve_static(filename):
     if filename.startswith('api/'):
-        return jsonify({'error': 'API endpoint not found'}), 404
+        return jsonify({'ok': False, 'error': 'API endpoint not found', 'code': 'NOT_FOUND'}), 404
     target = os.path.join(BASE_DIR, filename)
     if os.path.isfile(target):
         return send_from_directory(BASE_DIR, filename)
     return index()
 
+@app.errorhandler(400)
+def handle_400(e):
+    if request.path.startswith('/api/'):
+        return jsonify({'ok': False, 'error': getattr(e, 'description', 'Bad request'), 'code': 'BAD_REQUEST'}), 400
+    return jsonify({'ok': False, 'error': 'Bad request'}), 400
+
+@app.errorhandler(404)
+def handle_404(e):
+    if request.path.startswith('/api/'):
+        return jsonify({'ok': False, 'error': f'Endpoint not found: {request.path}', 'code': 'NOT_FOUND'}), 404
+    return index()
+
+@app.errorhandler(405)
+def handle_405(e):
+    if request.path.startswith('/api/'):
+        return jsonify({'ok': False, 'error': f'Method {request.method} not allowed for {request.path}', 'code': 'METHOD_NOT_ALLOWED'}), 405
+    return jsonify({'ok': False, 'error': 'Method not allowed'}), 405
+
+@app.errorhandler(500)
+def handle_500(e):
+    if request.path.startswith('/api/'):
+        return jsonify({'ok': False, 'error': 'Internal server error', 'code': 'SERVER_ERROR'}), 500
+    return jsonify({'ok': False, 'error': 'Internal server error'}), 500
+
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
     debug = os.environ.get('DEBUG', 'False').lower() in ('true', '1')
     print("=" * 65)
-    print(f"✨ Somphea Reak Core API running on http://127.0.0.1:{port}")
-    print(f"🛡️  Middleware Active: Customer & Admin Request Separation & Auth Guard")
-    print(f"📦 Shared Database: sompheareak.db (SQLite)")
+    print(f">> Somphea Reak Core API running on http://127.0.0.1:{port}")
+    print(f">> Middleware Active: Customer & Admin Request Separation & Auth Guard")
+    print(f">> Shared Database: sompheareak.db (SQLite)")
     print("=" * 65)
     app.run(host='0.0.0.0', port=port, debug=debug)

@@ -116,6 +116,39 @@ def run_tests():
     assert res_admin_trusted.headers.get('Access-Control-Allow-Origin') == 'https://admin.sompheareak.com'
     print("[PASS] Trusted admin origin https://admin.sompheareak.com preflight allowed with 204.")
 
+    # 6. Test Mobile LAN IP CORS & JSON Error Handling
+    print("\n--- Test 6: Mobile LAN Origin & JSON Error Responses ---")
+    # Mobile Wi-Fi request from LAN IP (e.g., 192.168.1.11:5500)
+    res_mobile_opt = client.options('/api/auth/exchange', headers={'Origin': 'http://192.168.1.11:5500'})
+    assert res_mobile_opt.status_code == 204, f"Expected 204 for mobile LAN origin, got {res_mobile_opt.status_code}"
+    assert res_mobile_opt.headers.get('Access-Control-Allow-Origin') == 'http://192.168.1.11:5500'
+    print("[PASS] Mobile LAN origin http://192.168.1.11:5500 preflight allowed with 204.")
+
+    # Mobile POST exchange with correct PIN
+    res_mobile_exchange = client.post(
+        '/api/auth/exchange',
+        headers={'Origin': 'http://192.168.1.11:5500'},
+        json={'pin': correct_pin}
+    )
+    assert res_mobile_exchange.status_code == 200, f"Expected 200 for mobile auth, got {res_mobile_exchange.status_code}"
+    assert res_mobile_exchange.content_type.startswith('application/json')
+    assert res_mobile_exchange.headers.get('Access-Control-Allow-Origin') == 'http://192.168.1.11:5500'
+    print("[PASS] Mobile auth exchange succeeded with JSON response and valid CORS headers.")
+
+    # API 404 returns JSON, NEVER HTML
+    res_api_404 = client.get('/api/some-nonexistent-endpoint')
+    assert res_api_404.status_code == 404
+    assert res_api_404.content_type.startswith('application/json'), f"Expected application/json, got {res_api_404.content_type}"
+    assert json.loads(res_api_404.data).get('code') == 'NOT_FOUND'
+    print("[PASS] API 404 correctly returns JSON instead of HTML <!doctype>.")
+
+    # API 405 returns JSON, NEVER HTML
+    res_api_405 = client.delete('/api/auth/exchange')
+    assert res_api_405.status_code == 405
+    assert res_api_405.content_type.startswith('application/json'), f"Expected application/json, got {res_api_405.content_type}"
+    assert json.loads(res_api_405.data).get('code') == 'METHOD_NOT_ALLOWED'
+    print("[PASS] API 405 correctly returns JSON instead of HTML <!doctype>.")
+
     print("\n=======================================================")
     print("ALL VERIFICATION CHECKS PASSED PERFECTLY!")
     print("=======================================================")

@@ -137,7 +137,13 @@ const SRDB = (() => {
   // Base API caller with flexible host detection
   const API_BASE = (window.SR_CONFIG && window.SR_CONFIG.API_BASE !== undefined)
     ? window.SR_CONFIG.API_BASE
-    : (localStorage.getItem('sr_api_base') || (window.location.port === '5000' ? '' : 'http://127.0.0.1:5000'));
+    : (localStorage.getItem('sr_api_base') || (
+        window.location.port === '5000'
+          ? ''
+          : ((window.location.hostname && window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1')
+              ? `${window.location.protocol}//${window.location.hostname}:5000`
+              : 'http://127.0.0.1:5000')
+      ));
 
   async function api(path, opts = {}) {
     try {
