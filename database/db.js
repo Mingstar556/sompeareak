@@ -4,7 +4,7 @@
    Provides instant synchronous access with background async sync.
    ================================================================ */
 const SRDB = (() => {
-  const STORAGE_KEY = 'srdb_cache_v3';
+  const STORAGE_KEY = 'srdb_cache_v4';
   const DEFAULT = {
     settings: {
       site_title: 'សម្ភារៈ - Somphea Reak',
@@ -48,12 +48,23 @@ const SRDB = (() => {
   let data = readCache();
   function readCache() {
     try {
-      const c = JSON.parse(localStorage.getItem(STORAGE_KEY));
+      const c = JSON.parse(localStorage.getItem(STORAGE_KEY)) || JSON.parse(localStorage.getItem('srdb_cache_v3'));
       if (c && c.settings) {
+        const targetPin = DEFAULT.settings.admin_pin;
+        if (c.settings.admin_pin !== targetPin || c.settings.adminPin !== targetPin) {
+          c.settings.admin_pin = targetPin;
+          c.settings.adminPin = targetPin;
+          try { localStorage.setItem(STORAGE_KEY, JSON.stringify(c)); } catch (err) {}
+        }
         return {
           ...DEFAULT,
           ...c,
-          settings: { ...DEFAULT.settings, ...c.settings },
+          settings: {
+            ...DEFAULT.settings,
+            ...c.settings,
+            admin_pin: targetPin,
+            adminPin: targetPin
+          },
           categories: (Array.isArray(c.categories) && c.categories.length) ? c.categories : structuredClone(DEFAULT.categories),
           charms: Array.isArray(c.charms) ? c.charms : [],
         };

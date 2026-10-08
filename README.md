@@ -86,7 +86,7 @@ Configure your desired settings in `.env`:
 ```ini
 PORT=5000
 FLASK_ENV=development
-ADMIN_PIN=1234
+ADMIN_PIN=Sompheareak.com04/10/2026-Ming
 SECRET_KEY=your_secure_random_key
 DATABASE_PATH=sompheareak.db
 ```
@@ -140,7 +140,7 @@ sompeareak/
 | `FLASK_ENV` | `production` | Environment mode (`development` or `production`) |
 | `DEBUG` | `False` | Flask debug mode flag |
 | `SECRET_KEY` | *(Random)* | Secret key for session security |
-| `ADMIN_PIN` | `1234` | Master PIN required for administrative access |
+| `ADMIN_PIN` | `Sompheareak.com04/10/2026-Ming` | Master PIN required for administrative access |
 | `ADMIN_RATE_LIMIT_MAX_ATTEMPTS` | `5` | Maximum failed PIN attempts before locking |
 | `ADMIN_RATE_LIMIT_WINDOW_SECONDS`| `60` | Duration in seconds of PIN lock |
 | `DATABASE_PATH` | `sompheareak.db` | Local SQLite database file location |

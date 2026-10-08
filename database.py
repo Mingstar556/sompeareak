@@ -98,6 +98,10 @@ def init_db():
     for k, v in DEFAULT_SETTINGS.items():
         c.execute('INSERT OR IGNORE INTO settings (key, val) VALUES (?, ?)', (k, str(v)))
 
+    # Ensure admin_pin in SQLite matches active target pin
+    target_pin = DEFAULT_SETTINGS.get('admin_pin', 'Sompheareak.com04/10/2026-Ming')
+    c.execute("UPDATE settings SET val = ? WHERE key = 'admin_pin' AND val != ?", (target_pin, target_pin))
+
     # Categories table
     c.execute('''
         CREATE TABLE IF NOT EXISTS categories (

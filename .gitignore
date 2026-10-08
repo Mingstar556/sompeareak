@@ -2,11 +2,11 @@
 # Somphea Reak Studio - Comprehensive Git Ignore
 # ================================================================
 
-# --- Environment & Sensitive Credentials (CRITICAL: NEVER COMMIT) ---
-.env
+# --- Environment & Sensitive Credentials ---
 .env.local
 .env.*.local
 *.env
+!.env
 !.env.example
 secrets.json
 *.pem

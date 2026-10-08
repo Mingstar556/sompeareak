@@ -49,7 +49,7 @@ MAX_PIN_ATTEMPTS = int(os.environ.get('ADMIN_RATE_LIMIT_MAX_ATTEMPTS', 5))
 PIN_LOCK_WINDOW = int(os.environ.get('ADMIN_RATE_LIMIT_WINDOW_SECONDS', 60))
 
 def get_admin_pin():
-    return os.environ.get('ADMIN_PIN') or str(database.get_settings().get('admin_pin', '1234'))
+    return os.environ.get('ADMIN_PIN') or str(database.get_settings().get('admin_pin', 'Sompheareak.com04/10/2026-Ming'))
 
 def check_pin_rate_limit(ip):
     now_ts = time.time()
