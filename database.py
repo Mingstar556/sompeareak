@@ -24,7 +24,7 @@ DEFAULT_SETTINGS = {
     'site_title': os.environ.get('SITE_TITLE', 'សម្ភារៈ - Somphea Reak'),
     'subtitle': os.environ.get('SITE_SUBTITLE', 'Premium Studio'),
     'tagline': os.environ.get('TAGLINE', 'Cambodia Kingdom of Wonder'),
-    'admin_pin': os.environ.get('ADMIN_PIN', 'ijsbfguinj7uijtfnrgiuwnibucugreiwvioqgvugitq254523%'),
+    'admin_pin': os.environ.get('ADMIN_PIN', 'Sompheareak.com04/10/2026-Ming'),
     'delivery_fee': float(os.environ.get('DELIVERY_FEE', 1.5)),
     'voucher_cost': int(os.environ.get('VOUCHER_COST', 25)),
     'voucher_pct': int(os.environ.get('VOUCHER_PCT', 10)),
