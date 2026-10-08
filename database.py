@@ -3,6 +3,7 @@ import json
 import os
 import uuid
 from datetime import datetime
+from werkzeug.security import generate_password_hash, check_password_hash
 
 # --- Environment Variable & Secrets Loading ---
 try:
@@ -24,7 +25,6 @@ DEFAULT_SETTINGS = {
     'site_title': os.environ.get('SITE_TITLE', 'សម្ភារៈ - Somphea Reak'),
     'subtitle': os.environ.get('SITE_SUBTITLE', 'Premium Studio'),
     'tagline': os.environ.get('TAGLINE', 'Cambodia Kingdom of Wonder'),
-    'admin_pin': os.environ.get('ADMIN_PIN', 'Sompheareak.com04/10/2026-Ming'),
     'delivery_fee': float(os.environ.get('DELIVERY_FEE', 1.5)),
     'voucher_cost': int(os.environ.get('VOUCHER_COST', 25)),
     'voucher_pct': int(os.environ.get('VOUCHER_PCT', 10)),
@@ -112,9 +112,28 @@ def init_db():
     for k, v in DEFAULT_SETTINGS.items():
         c.execute('INSERT OR IGNORE INTO settings (key, val) VALUES (?, ?)', (k, str(v)))
 
-    # Ensure admin_pin in SQLite matches active target pin
-    target_pin = DEFAULT_SETTINGS.get('admin_pin', 'Sompheareak.com04/10/2026-Ming')
-    c.execute("UPDATE settings SET val = ? WHERE key = 'admin_pin' AND val != ?", (target_pin, target_pin))
+    # Admin Credentials / Auth Hash Table (stores hashed password secrets only)
+    c.execute('''
+        CREATE TABLE IF NOT EXISTS admin_auth (
+            id INTEGER PRIMARY KEY,
+            password_hash TEXT NOT NULL,
+            updated_at TEXT NOT NULL
+        )
+    ''')
+
+    # Initialize / sync admin PIN as a salted cryptographic hash
+    target_pin = os.environ.get('ADMIN_PIN', 'Sompheareak.com04/10/2026-Ming')
+    c.execute('SELECT password_hash FROM admin_auth WHERE id = 1')
+    auth_row = c.fetchone()
+    if not auth_row:
+        c.execute('INSERT INTO admin_auth (id, password_hash, updated_at) VALUES (1, ?, ?)',
+                  (generate_password_hash(target_pin), datetime.now().isoformat()))
+    elif os.environ.get('ADMIN_PIN') and not check_password_hash(auth_row['password_hash'], target_pin):
+        c.execute('UPDATE admin_auth SET password_hash = ?, updated_at = ? WHERE id = 1',
+                  (generate_password_hash(target_pin), datetime.now().isoformat()))
+
+    # Hard security cleanup: remove any legacy plaintext PINs from public settings table
+    c.execute("DELETE FROM settings WHERE key IN ('admin_pin', 'adminPin')")
 
     # Categories table
     c.execute('''
@@ -293,6 +312,39 @@ def get_sync_status():
         }
     }
 
+# --- Admin Authentication & Hash Management ---
+def verify_admin_pin(pin: str) -> bool:
+    """Validate candidate PIN/password against salted cryptographic hash in database."""
+    if not pin:
+        return False
+    conn = get_db()
+    c = conn.cursor()
+    c.execute('SELECT password_hash FROM admin_auth WHERE id = 1')
+    row = c.fetchone()
+    conn.close()
+    if not row or not row['password_hash']:
+        target_pin = os.environ.get('ADMIN_PIN', 'Sompheareak.com04/10/2026-Ming')
+        return str(pin).strip() == target_pin
+    return check_password_hash(row['password_hash'], str(pin).strip())
+
+def set_admin_pin(new_pin: str) -> bool:
+    """Store admin PIN as salted cryptographic hash."""
+    pin_clean = str(new_pin).strip()
+    if not pin_clean or len(pin_clean) < 4:
+        return False
+    p_hash = generate_password_hash(pin_clean)
+    conn = get_db()
+    c = conn.cursor()
+    c.execute('''
+        INSERT INTO admin_auth (id, password_hash, updated_at)
+        VALUES (1, ?, ?)
+        ON CONFLICT(id) DO UPDATE SET password_hash = ?, updated_at = ?
+    ''', (p_hash, now(), p_hash, now()))
+    c.execute("DELETE FROM settings WHERE key IN ('admin_pin', 'adminPin')")
+    conn.commit()
+    conn.close()
+    return True
+
 # --- Settings ---
 def get_settings():
     conn = get_db()
@@ -315,12 +367,25 @@ def get_settings():
             except: res[k] = DEFAULT_SETTINGS['charms']
         else:
             res[k] = v
+
+    # Security sanitize: never expose credentials or hashes in public settings
+    res.pop('admin_pin', None)
+    res.pop('adminPin', None)
+    res.pop('password_hash', None)
     return res
 
 def save_settings(patch):
     conn = get_db()
     c = conn.cursor()
+
+    # Intercept and securely hash admin pin if present in patch
+    new_pin = patch.pop('admin_pin', None) or patch.pop('adminPin', None)
+    if new_pin and str(new_pin).strip():
+        set_admin_pin(str(new_pin).strip())
+
     for k, v in patch.items():
+        if k in ('admin_pin', 'adminPin', 'password_hash'):
+            continue
         if isinstance(v, (list, dict)):
             v = json.dumps(v)
         c.execute('INSERT OR REPLACE INTO settings (key, val) VALUES (?, ?)', (k, str(v)))
@@ -1140,6 +1205,8 @@ def reset_database():
     c.execute('DROP TABLE IF EXISTS categories')
     c.execute('DROP TABLE IF EXISTS charms')
     c.execute('DROP TABLE IF EXISTS settings')
+    c.execute('DROP TABLE IF EXISTS admin_auth')
+    c.execute('DROP TABLE IF EXISTS sync_versions')
     conn.commit()
     conn.close()
 

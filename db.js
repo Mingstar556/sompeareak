@@ -13,8 +13,6 @@ const SRDB = (() => {
       tagline: 'Cambodia Kingdom of Wonder',
       site_logo: 'logo.jpg',
       siteLogo: 'logo.jpg',
-      admin_pin: 'Sompheareak.com04/10/2026-Ming',
-      adminPin: 'Sompheareak.com04/10/2026-Ming',
       delivery_fee: 1.5,
       deliveryFee: 1.5,
       voucher_cost: 25,
@@ -64,20 +62,14 @@ const SRDB = (() => {
     try {
       const c = JSON.parse(localStorage.getItem(STORAGE_KEY)) || JSON.parse(localStorage.getItem('srdb_cache_v3'));
       if (c && c.settings) {
-        const targetPin = DEFAULT.settings.admin_pin;
-        if (c.settings.admin_pin !== targetPin || c.settings.adminPin !== targetPin) {
-          c.settings.admin_pin = targetPin;
-          c.settings.adminPin = targetPin;
-          try { localStorage.setItem(STORAGE_KEY, JSON.stringify(c)); } catch (err) {}
-        }
+        delete c.settings.admin_pin;
+        delete c.settings.adminPin;
         return {
           ...DEFAULT,
           ...c,
           settings: {
             ...DEFAULT.settings,
             ...c.settings,
-            admin_pin: targetPin,
-            adminPin: targetPin
           },
           categories: (Array.isArray(c.categories) && c.categories.length) ? c.categories : structuredClone(DEFAULT.categories),
           charms: Array.isArray(c.charms) ? c.charms : [],
@@ -151,7 +143,6 @@ const SRDB = (() => {
     try {
       const headers = {
         'Content-Type': 'application/json',
-        'X-Client-Role': 'customer',
         ...(opts.headers || {})
       };
       const res = await fetch(`${API_BASE}${path}`, {
@@ -229,7 +220,6 @@ const SRDB = (() => {
             ...res,
             siteTitle: res.site_title || res.siteTitle || data.settings.siteTitle,
             siteLogo: res.site_logo || res.siteLogo || data.settings.siteLogo || 'logo.jpg',
-            adminPin: res.admin_pin || res.adminPin || data.settings.adminPin,
             deliveryFee: res.delivery_fee !== undefined ? res.delivery_fee : data.settings.deliveryFee,
             voucherCost: res.voucher_cost !== undefined ? res.voucher_cost : data.settings.voucherCost,
             voucherPct: res.voucher_pct !== undefined ? res.voucher_pct : data.settings.voucherPct,
@@ -290,7 +280,6 @@ const SRDB = (() => {
         ...st,
         siteTitle: st.site_title || st.siteTitle || data.settings.siteTitle,
         siteLogo: st.site_logo || st.siteLogo || data.settings.siteLogo || 'logo.jpg',
-        adminPin: st.admin_pin || st.adminPin || data.settings.adminPin,
         deliveryFee: st.delivery_fee !== undefined ? st.delivery_fee : data.settings.deliveryFee,
         voucherCost: st.voucher_cost !== undefined ? st.voucher_cost : data.settings.voucherCost,
         voucherPct: st.voucher_pct !== undefined ? st.voucher_pct : data.settings.voucherPct,

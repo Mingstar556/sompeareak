@@ -2,6 +2,10 @@ import os
 import sys
 import time
 import uuid
+import hmac
+import hashlib
+import base64
+import json
 from functools import wraps
 from flask import Flask, request, jsonify, send_from_directory, redirect, g, make_response
 import database
@@ -27,20 +31,105 @@ except ImportError:
                     _k, _v = _line.split('=', 1)
                     os.environ.setdefault(_k.strip(), _v.strip().strip('"').strip("'"))
 
-# Initialize Database Schema
+# Initialize Database Schema & Admin Auth Hash
 database.init_db()
 
 app = Flask(__name__, static_folder=BASE_DIR)
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'sompheareak_secret_key_prod_2026')
 app.config['MAX_CONTENT_LENGTH'] = int(os.environ.get('MAX_CONTENT_LENGTH', 16 * 1024 * 1024))
 
+# --- Token Configuration (Cryptographic Signed JWT) ---
+TOKEN_LIFETIME_SECONDS = int(os.environ.get('TOKEN_LIFETIME_SECONDS', 86400)) # 24 Hours default
+
+def create_signed_token(payload: dict) -> str:
+    """Create an HMAC-SHA256 cryptographically signed JWT token."""
+    header = {"alg": "HS256", "typ": "JWT"}
+    secret = app.config['SECRET_KEY'].encode('utf-8')
+    h_b64 = base64.urlsafe_b64encode(json.dumps(header, separators=(',', ':')).encode('utf-8')).decode('utf-8').rstrip('=')
+    p_b64 = base64.urlsafe_b64encode(json.dumps(payload, separators=(',', ':')).encode('utf-8')).decode('utf-8').rstrip('=')
+    msg = f"{h_b64}.{p_b64}".encode('utf-8')
+    sig = hmac.new(secret, msg, hashlib.sha256).digest()
+    s_b64 = base64.urlsafe_b64encode(sig).decode('utf-8').rstrip('=')
+    return f"{h_b64}.{p_b64}.{s_b64}"
+
+def verify_signed_token(token: str) -> dict | None:
+    """Verify cryptographic signature, structure, and expiration of JWT token."""
+    if not token or not isinstance(token, str):
+        return None
+    try:
+        parts = token.strip().split('.')
+        if len(parts) != 3:
+            return None
+        h_b64, p_b64, s_b64 = parts
+        secret = app.config['SECRET_KEY'].encode('utf-8')
+        msg = f"{h_b64}.{p_b64}".encode('utf-8')
+        expected_sig = hmac.new(secret, msg, hashlib.sha256).digest()
+
+        sig_pad = '=' * (-len(s_b64) % 4)
+        actual_sig = base64.urlsafe_b64decode(s_b64 + sig_pad)
+        if not hmac.compare_digest(expected_sig, actual_sig):
+            return None
+
+        p_pad = '=' * (-len(p_b64) % 4)
+        payload = json.loads(base64.urlsafe_b64decode(p_b64 + p_pad).decode('utf-8'))
+
+        # Check expiration timestamp
+        exp = payload.get('exp')
+        if exp and int(exp) < time.time():
+            return None
+
+        return payload
+    except Exception:
+        return None
+
+def extract_token_from_request(req) -> str | None:
+    """Extract Bearer token or custom admin token header."""
+    auth_hdr = req.headers.get('Authorization', '').strip()
+    if auth_hdr.startswith('Bearer '):
+        return auth_hdr[7:].strip()
+    custom_hdr = req.headers.get('X-Admin-Token', '').strip()
+    if custom_hdr:
+        return custom_hdr
+    return None
+
+# --- Strict Allowed Origins Whitelist ---
+def load_allowed_origins() -> set:
+    configured = os.environ.get('ALLOWED_ORIGINS', '')
+    origins = set()
+    if configured:
+        for item in configured.split(','):
+            norm = item.strip().rstrip('/').lower()
+            if norm:
+                origins.add(norm)
+    # Production Domains
+    prod_domain = os.environ.get('PRODUCTION_DOMAIN', 'https://sompheareak.com').strip().rstrip('/').lower()
+    if prod_domain:
+        origins.add(prod_domain)
+    origins.add('https://sompheareak.com')
+    origins.add('https://www.sompheareak.com')
+    origins.add('https://admin.sompheareak.com')
+    origins.add('https://mingstar556.github.io')
+
+    # Authorized Development Origins
+    origins.add('http://127.0.0.1:5000')
+    origins.add('http://localhost:5000')
+    origins.add('http://127.0.0.1:5500')
+    origins.add('http://localhost:5500')
+    return origins
+
+ALLOWED_ORIGINS = load_allowed_origins()
+
+def is_origin_allowed(origin_hdr: str | None) -> bool:
+    """Validate whether an Origin header matches authorized domains."""
+    if not origin_hdr:
+        return True # Non-browser or same-origin request
+    norm = origin_hdr.strip().rstrip('/').lower()
+    return norm in ALLOWED_ORIGINS
+
 # --- Admin Authentication & Rate Limiting Storage ---
 FAILED_PIN_ATTEMPTS = {}
 MAX_PIN_ATTEMPTS = int(os.environ.get('ADMIN_RATE_LIMIT_MAX_ATTEMPTS', 3))
 PIN_LOCK_WINDOW = int(os.environ.get('ADMIN_RATE_LIMIT_WINDOW_SECONDS', 60))
-
-def get_admin_pin():
-    return os.environ.get('ADMIN_PIN') or str(database.get_settings().get('admin_pin', 'Sompheareak.com04/10/2026-Ming'))
 
 def check_pin_rate_limit(ip):
     now_ts = time.time()
@@ -65,30 +154,23 @@ def record_failed_pin(ip):
 def record_success_pin(ip):
     FAILED_PIN_ATTEMPTS.pop(ip, None)
 
-def is_admin_authorized(req):
-    configured_pin = get_admin_pin()
-    # 1. Custom header check
-    pin_hdr = req.headers.get('X-Admin-PIN', '').strip()
-    if pin_hdr and pin_hdr == configured_pin:
-        return True
-    # 2. Authorization Bearer token check
-    auth_hdr = req.headers.get('Authorization', '').strip()
-    if auth_hdr.startswith('Bearer ') and auth_hdr[7:].strip() == configured_pin:
-        return True
-    # 3. JSON body fallback check
-    if req.is_json and req.json and str(req.json.get('admin_pin', '')).strip() == configured_pin:
-        return True
-    return False
+def is_admin_authorized(req) -> bool:
+    """Validate permission server-side based strictly on cryptographically signed token."""
+    token = extract_token_from_request(req)
+    if not token:
+        return False
+    claims = verify_signed_token(token)
+    return bool(claims and claims.get('role') == 'admin')
 
 def admin_required(f):
-    """View decorator ensuring administrative rights (backed by global middleware)."""
+    """View decorator ensuring administrative rights (validated via signed JWT token)."""
     @wraps(f)
     def decorated(*args, **kwargs):
-        if not is_admin_authorized(request):
+        if not getattr(g, 'is_admin', False):
             return jsonify({
                 'ok': False,
-                'error': 'Unauthorized: Admin authentication required',
-                'code': 'ADMIN_AUTH_REQUIRED',
+                'error': 'Unauthorized: Valid signed admin token required',
+                'code': 'ADMIN_TOKEN_REQUIRED',
                 'client_type': getattr(g, 'client_type', 'unknown')
             }), 401
         return f(*args, **kwargs)
@@ -97,11 +179,11 @@ def admin_required(f):
 
 # ================================================================
 # MIDDLEWARE PATTERN PIPELINE
-# Distinguishes Customer Requests from Admin Requests, enforces
-# role-based access control, handles cross-origin requests, and logs telemetry.
+# 1. Enforces strict origin restriction
+# 2. Validates signed tokens server-side (NEVER trusts X-Client-Role)
+# 3. Enforces role-based guards on administrative routes
 # ================================================================
 
-# Routes / mutations that require administrative role
 ADMIN_MUTATION_PATHS = {
     ('/api/settings', 'POST'),
     ('/api/categories', 'POST'),
@@ -136,53 +218,69 @@ def is_administrative_route(path: str, method: str) -> bool:
 @app.before_request
 def request_pipeline_middleware():
     """
-    Core Request Classifier & Guard Middleware:
-    1. Handles CORS Preflight (OPTIONS)
-    2. Classifies client type: 'admin', 'customer', or 'static'
-    3. Enforces administrative authentication guard
+    Core Security & Classification Middleware:
+    1. Restricts Origin to allowed production/development domains
+    2. Handles CORS Preflight (OPTIONS)
+    3. Validates permissions via cryptographic signed token (NEVER trusts X-Client-Role)
+    4. Guards administrative routes
     """
     g.start_time = time.time()
     g.request_id = str(uuid.uuid4())[:8]
 
-    # --- 1. CORS Preflight Handling ---
+    origin = request.headers.get('Origin')
+
+    # --- 1. Origin Restriction Guard ---
+    if origin and not is_origin_allowed(origin):
+        return jsonify({
+            'ok': False,
+            'error': f'Forbidden: Origin {origin} is untrusted and rejected by CORS policy',
+            'code': 'UNTRUSTED_ORIGIN'
+        }), 403
+
+    # --- 2. CORS Preflight Handling ---
     if request.method == 'OPTIONS':
         response = make_response('', 204)
-        origin = request.headers.get('Origin', '*')
-        response.headers['Access-Control-Allow-Origin'] = origin
+        if origin and is_origin_allowed(origin):
+            response.headers['Access-Control-Allow-Origin'] = origin
+            response.headers['Access-Control-Allow-Credentials'] = 'true'
         response.headers['Access-Control-Allow-Methods'] = 'GET, POST, PUT, DELETE, OPTIONS'
-        response.headers['Access-Control-Allow-Headers'] = 'Content-Type, Authorization, X-Admin-PIN, X-Client-Role, X-Request-ID'
+        response.headers['Access-Control-Allow-Headers'] = 'Content-Type, Authorization, X-Admin-Token, X-Request-ID'
         response.headers['Access-Control-Max-Age'] = '86400'
         return response
 
     path = request.path
     method = request.method
 
-    # --- 2. Request Classification ---
+    # Static routes
     if not path.startswith('/api/'):
         g.client_type = 'static'
         g.is_admin = False
         return
 
-    # Check headers and route signature
-    explicit_role = request.headers.get('X-Client-Role', '').lower().strip()
-    has_admin_creds = bool(request.headers.get('X-Admin-PIN') or request.headers.get('Authorization', '').startswith('Bearer '))
-    is_admin_path = is_administrative_route(path, method)
+    # --- 3. Server-Side Token Authentication (NEVER trust X-Client-Role) ---
+    token = extract_token_from_request(request)
+    claims = verify_signed_token(token) if token else None
 
-    if explicit_role == 'admin' or has_admin_creds or is_admin_path:
+    if claims and claims.get('role') == 'admin':
         g.client_type = 'admin'
         g.is_admin = True
+        g.admin_claims = claims
     else:
         g.client_type = 'customer'
         g.is_admin = False
+        g.admin_claims = None
 
-    # --- 3. Role-Based Access Guard ---
-    if is_admin_path and path != '/api/admin/verify-pin':
-        if not is_admin_authorized(request):
+    # --- 4. Role-Based Access Guard for Protected Administrative Routes ---
+    public_auth_paths = {'/api/auth/exchange', '/api/admin/exchange', '/api/admin/verify-pin'}
+    is_admin_path = is_administrative_route(path, method)
+
+    if is_admin_path and path not in public_auth_paths:
+        if not g.is_admin:
             return jsonify({
                 'ok': False,
-                'error': 'Unauthorized: Admin authentication required for this administrative operation',
-                'code': 'ADMIN_AUTH_REQUIRED',
-                'client_type': 'admin',
+                'error': 'Unauthorized: Valid signed admin token required for this protected operation',
+                'code': 'ADMIN_TOKEN_REQUIRED',
+                'client_type': g.client_type,
                 'request_id': g.request_id
             }), 401
 
@@ -190,16 +288,18 @@ def request_pipeline_middleware():
 def response_pipeline_middleware(response):
     """
     Post-Request Telemetry, CORS & Security Headers Middleware:
-    Stamps diagnostic headers and writes audit logs.
+    Stamps diagnostic headers and strictly enforces authorized CORS origin.
     """
-    # 1. CORS Headers for standalone admin dashboard (sompheareakAdmin) & customer front
-    origin = request.headers.get('Origin', '*')
-    response.headers['Access-Control-Allow-Origin'] = origin
-    response.headers['Access-Control-Allow-Methods'] = 'GET, POST, PUT, DELETE, OPTIONS'
-    response.headers['Access-Control-Allow-Headers'] = 'Content-Type, Authorization, X-Admin-PIN, X-Client-Role, X-Request-ID'
-    response.headers['Access-Control-Expose-Headers'] = 'X-Client-Type, X-Request-ID, X-Response-Time-Ms'
+    origin = request.headers.get('Origin')
+    if origin and is_origin_allowed(origin):
+        response.headers['Access-Control-Allow-Origin'] = origin
+        response.headers['Access-Control-Allow-Credentials'] = 'true'
+        response.headers['Access-Control-Allow-Methods'] = 'GET, POST, PUT, DELETE, OPTIONS'
+        response.headers['Access-Control-Allow-Headers'] = 'Content-Type, Authorization, X-Admin-Token, X-Request-ID'
+        response.headers['Access-Control-Expose-Headers'] = 'X-Client-Type, X-Request-ID, X-Response-Time-Ms'
+        response.headers['Vary'] = 'Origin'
 
-    # 2. Security Headers
+    # Security Headers
     if os.environ.get('ENABLE_SECURITY_HEADERS', 'True').lower() in ('true', '1'):
         response.headers['X-Content-Type-Options'] = 'nosniff'
         response.headers['X-Frame-Options'] = 'SAMEORIGIN'
@@ -207,7 +307,6 @@ def response_pipeline_middleware(response):
         response.headers['Referrer-Policy'] = 'strict-origin-when-cross-origin'
         response.headers['Permissions-Policy'] = 'camera=(), microphone=(), geolocation=()'
 
-    # 3. Request Telemetry & Diagnostics
     client_type = getattr(g, 'client_type', 'static')
     req_id = getattr(g, 'request_id', 'unknown')
     duration_ms = int((time.time() - getattr(g, 'start_time', time.time())) * 1000)
@@ -216,7 +315,7 @@ def response_pipeline_middleware(response):
     response.headers['X-Request-ID'] = req_id
     response.headers['X-Response-Time-Ms'] = str(duration_ms)
 
-    # 4. Structured Audit Log in Terminal (Skip successful high-frequency polling to keep terminal I/O zero-latency)
+    # Structured Audit Log in Terminal (Skip high-frequency sync polls to keep terminal I/O zero-latency)
     if request.path.startswith('/api/'):
         if request.path == '/api/sync/status' and response.status_code == 200:
             return response
@@ -266,11 +365,14 @@ def get_sync_status():
 
 
 # ================================================================
-# API: Admin Authentication & Verification
+# API: Admin Authentication & Token Exchange Endpoint
+# Exchanges verified PIN/password for a cryptographically signed Bearer token.
 # ================================================================
 
+@app.route('/api/auth/exchange', methods=['POST'])
+@app.route('/api/admin/exchange', methods=['POST'])
 @app.route('/api/admin/verify-pin', methods=['POST'])
-def verify_pin():
+def exchange_token():
     ip = request.remote_addr or 'unknown'
     allowed, remaining = check_pin_rate_limit(ip)
     if not allowed:
@@ -282,19 +384,35 @@ def verify_pin():
         }), 429
 
     data = request.json or {}
-    pin = str(data.get('pin', '')).strip()
-    correct_pin = str(get_admin_pin())
+    pin = str(data.get('pin') or data.get('password') or '').strip()
 
-    if pin == correct_pin:
+    if database.verify_admin_pin(pin):
         record_success_pin(ip)
-        return jsonify({'ok': True, 'role': 'admin'})
+        now_ts = int(time.time())
+        exp_ts = now_ts + TOKEN_LIFETIME_SECONDS
+        payload = {
+            'sub': 'admin',
+            'role': 'admin',
+            'jti': uuid.uuid4().hex,
+            'iat': now_ts,
+            'exp': exp_ts
+        }
+        token = create_signed_token(payload)
+        return jsonify({
+            'ok': True,
+            'token': token,
+            'token_type': 'Bearer',
+            'role': 'admin',
+            'expires_in': TOKEN_LIFETIME_SECONDS,
+            'expires_at': exp_ts
+        })
     else:
         record_failed_pin(ip)
         current_attempts = FAILED_PIN_ATTEMPTS.get(ip, {}).get('count', 0)
         attempts_left = max(0, MAX_PIN_ATTEMPTS - current_attempts)
         return jsonify({
             'ok': False,
-            'error': 'Invalid PIN' if attempts_left > 0 else f'Too many failed attempts. Locked for {PIN_LOCK_WINDOW}s.',
+            'error': 'Invalid PIN or credentials' if attempts_left > 0 else f'Too many failed attempts. Locked for {PIN_LOCK_WINDOW}s.',
             'attempts_left': attempts_left
         }), 401
 
