@@ -1,13 +1,19 @@
 import os
 import sys
 import time
+import uuid
 from functools import wraps
-from flask import Flask, request, jsonify, send_from_directory, redirect
+from flask import Flask, request, jsonify, send_from_directory, redirect, g, make_response
 import database
 
-# --- Environment Variable & Secrets Loading ---
+# ================================================================
+# Somphea Reak Studio - Unified Python API Server
+# Powers both the Customer Storefront and the Standalone Admin Desk (sompheareakAdmin).
+# ================================================================
+
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
+# --- Environment Variable & Secrets Loading ---
 try:
     from dotenv import load_dotenv
     load_dotenv(os.path.join(BASE_DIR, '.env'))
@@ -28,24 +34,9 @@ app = Flask(__name__, static_folder=BASE_DIR)
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'sompheareak_secret_key_prod_2026')
 app.config['MAX_CONTENT_LENGTH'] = int(os.environ.get('MAX_CONTENT_LENGTH', 16 * 1024 * 1024))
 
-# --- Security Headers Middleware ---
-@app.after_request
-def add_security_headers(response):
-    if os.environ.get('ENABLE_SECURITY_HEADERS', 'True').lower() in ('true', '1'):
-        response.headers['X-Content-Type-Options'] = 'nosniff'
-        response.headers['X-Frame-Options'] = 'SAMEORIGIN'
-        response.headers['X-XSS-Protection'] = '1; mode=block'
-        response.headers['Referrer-Policy'] = 'strict-origin-when-cross-origin'
-        response.headers['Permissions-Policy'] = 'camera=(), microphone=(), geolocation=()'
-        response.headers['Content-Security-Policy'] = (
-            "default-src 'self' http: https: data: blob: 'unsafe-inline' 'unsafe-eval'; "
-            "frame-ancestors 'self';"
-        )
-    return response
-
-# --- Admin Authentication & Rate Limiting ---
+# --- Admin Authentication & Rate Limiting Storage ---
 FAILED_PIN_ATTEMPTS = {}
-MAX_PIN_ATTEMPTS = int(os.environ.get('ADMIN_RATE_LIMIT_MAX_ATTEMPTS', 5))
+MAX_PIN_ATTEMPTS = int(os.environ.get('ADMIN_RATE_LIMIT_MAX_ATTEMPTS', 3))
 PIN_LOCK_WINDOW = int(os.environ.get('ADMIN_RATE_LIMIT_WINDOW_SECONDS', 60))
 
 def get_admin_pin():
@@ -76,53 +67,193 @@ def record_success_pin(ip):
 
 def is_admin_authorized(req):
     configured_pin = get_admin_pin()
-    # 1. Check custom header
+    # 1. Custom header check
     pin_hdr = req.headers.get('X-Admin-PIN', '').strip()
     if pin_hdr and pin_hdr == configured_pin:
         return True
-    # 2. Check Bearer token
+    # 2. Authorization Bearer token check
     auth_hdr = req.headers.get('Authorization', '').strip()
     if auth_hdr.startswith('Bearer ') and auth_hdr[7:].strip() == configured_pin:
         return True
-    # 3. Check JSON payload pin
+    # 3. JSON body fallback check
     if req.is_json and req.json and str(req.json.get('admin_pin', '')).strip() == configured_pin:
         return True
     return False
 
 def admin_required(f):
+    """View decorator ensuring administrative rights (backed by global middleware)."""
     @wraps(f)
     def decorated(*args, **kwargs):
         if not is_admin_authorized(request):
             return jsonify({
+                'ok': False,
                 'error': 'Unauthorized: Admin authentication required',
-                'code': 'ADMIN_AUTH_REQUIRED'
+                'code': 'ADMIN_AUTH_REQUIRED',
+                'client_type': getattr(g, 'client_type', 'unknown')
             }), 401
         return f(*args, **kwargs)
     return decorated
 
-# --- Static Page Routes ---
+
+# ================================================================
+# MIDDLEWARE PATTERN PIPELINE
+# Distinguishes Customer Requests from Admin Requests, enforces
+# role-based access control, handles cross-origin requests, and logs telemetry.
+# ================================================================
+
+# Routes / mutations that require administrative role
+ADMIN_MUTATION_PATHS = {
+    ('/api/settings', 'POST'),
+    ('/api/categories', 'POST'),
+    ('/api/products', 'POST'),
+    ('/api/products/seed', 'POST'),
+    ('/api/products/clear', 'POST'),
+    ('/api/charms', 'POST'),
+    ('/api/charms/seed', 'POST'),
+    ('/api/charms/clear', 'POST'),
+}
+
+def is_administrative_route(path: str, method: str) -> bool:
+    """Determine if a route is inherently an administrative action."""
+    if path.startswith('/api/admin/'):
+        return True
+    if (path, method) in ADMIN_MUTATION_PATHS:
+        return True
+    # DELETE operations on resources
+    if method == 'DELETE' and (path.startswith('/api/categories/') or path.startswith('/api/products/') or path.startswith('/api/charms/')):
+        return True
+    # Stock adjustment
+    if method == 'POST' and ('/stock' in path):
+        return True
+    # Order approval, rejection, cancellation, status updates
+    if method == 'POST' and path.startswith('/api/orders/') and any(action in path for action in ('/approve', '/reject', '/cancel', '/status')):
+        return True
+    # Points adjustment by admin
+    if method == 'POST' and path.startswith('/api/users/') and path.endswith('/points'):
+        return True
+    return False
+
+@app.before_request
+def request_pipeline_middleware():
+    """
+    Core Request Classifier & Guard Middleware:
+    1. Handles CORS Preflight (OPTIONS)
+    2. Classifies client type: 'admin', 'customer', or 'static'
+    3. Enforces administrative authentication guard
+    """
+    g.start_time = time.time()
+    g.request_id = str(uuid.uuid4())[:8]
+
+    # --- 1. CORS Preflight Handling ---
+    if request.method == 'OPTIONS':
+        response = make_response('', 204)
+        origin = request.headers.get('Origin', '*')
+        response.headers['Access-Control-Allow-Origin'] = origin
+        response.headers['Access-Control-Allow-Methods'] = 'GET, POST, PUT, DELETE, OPTIONS'
+        response.headers['Access-Control-Allow-Headers'] = 'Content-Type, Authorization, X-Admin-PIN, X-Client-Role, X-Request-ID'
+        response.headers['Access-Control-Max-Age'] = '86400'
+        return response
+
+    path = request.path
+    method = request.method
+
+    # --- 2. Request Classification ---
+    if not path.startswith('/api/'):
+        g.client_type = 'static'
+        g.is_admin = False
+        return
+
+    # Check headers and route signature
+    explicit_role = request.headers.get('X-Client-Role', '').lower().strip()
+    has_admin_creds = bool(request.headers.get('X-Admin-PIN') or request.headers.get('Authorization', '').startswith('Bearer '))
+    is_admin_path = is_administrative_route(path, method)
+
+    if explicit_role == 'admin' or has_admin_creds or is_admin_path:
+        g.client_type = 'admin'
+        g.is_admin = True
+    else:
+        g.client_type = 'customer'
+        g.is_admin = False
+
+    # --- 3. Role-Based Access Guard ---
+    if is_admin_path and path != '/api/admin/verify-pin':
+        if not is_admin_authorized(request):
+            return jsonify({
+                'ok': False,
+                'error': 'Unauthorized: Admin authentication required for this administrative operation',
+                'code': 'ADMIN_AUTH_REQUIRED',
+                'client_type': 'admin',
+                'request_id': g.request_id
+            }), 401
+
+@app.after_request
+def response_pipeline_middleware(response):
+    """
+    Post-Request Telemetry, CORS & Security Headers Middleware:
+    Stamps diagnostic headers and writes audit logs.
+    """
+    # 1. CORS Headers for standalone admin dashboard (sompheareakAdmin) & customer front
+    origin = request.headers.get('Origin', '*')
+    response.headers['Access-Control-Allow-Origin'] = origin
+    response.headers['Access-Control-Allow-Methods'] = 'GET, POST, PUT, DELETE, OPTIONS'
+    response.headers['Access-Control-Allow-Headers'] = 'Content-Type, Authorization, X-Admin-PIN, X-Client-Role, X-Request-ID'
+    response.headers['Access-Control-Expose-Headers'] = 'X-Client-Type, X-Request-ID, X-Response-Time-Ms'
+
+    # 2. Security Headers
+    if os.environ.get('ENABLE_SECURITY_HEADERS', 'True').lower() in ('true', '1'):
+        response.headers['X-Content-Type-Options'] = 'nosniff'
+        response.headers['X-Frame-Options'] = 'SAMEORIGIN'
+        response.headers['X-XSS-Protection'] = '1; mode=block'
+        response.headers['Referrer-Policy'] = 'strict-origin-when-cross-origin'
+        response.headers['Permissions-Policy'] = 'camera=(), microphone=(), geolocation=()'
+
+    # 3. Request Telemetry & Diagnostics
+    client_type = getattr(g, 'client_type', 'static')
+    req_id = getattr(g, 'request_id', 'unknown')
+    duration_ms = int((time.time() - getattr(g, 'start_time', time.time())) * 1000)
+
+    response.headers['X-Client-Type'] = client_type
+    response.headers['X-Request-ID'] = req_id
+    response.headers['X-Response-Time-Ms'] = str(duration_ms)
+
+    # 4. Structured Audit Log in Terminal
+    if request.path.startswith('/api/'):
+        tag = '[ADMIN REQ]' if client_type == 'admin' else '[CUSTOMER REQ]'
+        status = response.status_code
+        print(f"{tag} {request.method} {request.path} -> {status} ({duration_ms}ms) [IP: {request.remote_addr}, ID: {req_id}]")
+
+    return response
+
+
+# ================================================================
+# Static Page Routes (Customer Storefront Only)
+# ================================================================
+
 @app.route('/')
 def index():
-    for candidate in [BASE_DIR, os.path.join(BASE_DIR, 'costumer')]:
-        if os.path.exists(os.path.join(candidate, 'index.html')):
-            return send_from_directory(candidate, 'index.html')
     return send_from_directory(BASE_DIR, 'index.html')
-
-@app.route('/admin')
-@app.route('/admin.html')
-def admin_page():
-    for candidate in [BASE_DIR, os.path.join(BASE_DIR, 'Admin')]:
-        if os.path.exists(os.path.join(candidate, 'admin.html')):
-            return send_from_directory(candidate, 'admin.html')
-    return send_from_directory(BASE_DIR, 'admin.html')
 
 @app.route('/custom-bracelet')
 @app.route('/custom-bracelet.html')
 def custom_bracelet_page():
     return redirect('/#custom-bracelet')
 
+# Decoupled Admin Route: Admin portal is moved to sompheareakAdmin repository
+@app.route('/admin')
+@app.route('/admin.html')
+def admin_page_redirect():
+    return jsonify({
+        'ok': False,
+        'message': 'Admin Dashboard has been decoupled into its dedicated portal repository (sompheareakAdmin).',
+        'admin_portal': 'Please run the admin portal from the sompheareakAdmin repository (e.g. http://127.0.0.1:5500).',
+        'api_status': 'Server and Database are active and synchronized.'
+    }), 403
 
-# --- API: Admin PIN Verification (Rate-Limited) ---
+
+# ================================================================
+# API: Admin Authentication & Verification
+# ================================================================
+
 @app.route('/api/admin/verify-pin', methods=['POST'])
 def verify_pin():
     ip = request.remote_addr or 'unknown'
@@ -152,7 +283,11 @@ def verify_pin():
             'attempts_left': attempts_left
         }), 401
 
-# --- API: Settings ---
+
+# ================================================================
+# API: Store Settings (Read: Public Customer, Write: Admin)
+# ================================================================
+
 @app.route('/api/settings', methods=['GET'])
 def get_settings():
     return jsonify(database.get_settings())
@@ -164,7 +299,11 @@ def save_settings():
     updated = database.save_settings(patch)
     return jsonify(updated)
 
-# --- API: Categories ---
+
+# ================================================================
+# API: Categories (Read: Public Customer, Write: Admin)
+# ================================================================
+
 @app.route('/api/categories', methods=['GET'])
 def list_categories():
     return jsonify(database.get_categories())
@@ -184,7 +323,11 @@ def delete_category(cat_id):
     database.delete_category(cat_id)
     return jsonify({'ok': True})
 
-# --- API: Products ---
+
+# ================================================================
+# API: Products (Read: Public Customer, Write: Admin)
+# ================================================================
+
 @app.route('/api/products', methods=['GET'])
 def list_products():
     include_inactive = request.args.get('all', '0') in ('1', 'true')
@@ -234,13 +377,16 @@ def clear_catalog():
     return jsonify({'ok': True})
 
 
-# --- API: Charms & Custom Italy Bracelet Studio ---
+# ================================================================
+# API: Charms & Custom Italian Charm Studio Catalog
+# ================================================================
+
 @app.route('/api/products/custom_bracelet', methods=['GET'])
 def get_custom_bracelet_catalog():
     charms = database.get_charms(include_inactive=False)
     cat_summary = database.get_charm_categories()
     categories_list = [{'name': c['category'], 'image': c['thumb']} for c in cat_summary]
-    
+
     products_list = []
     for c in charms:
         products_list.append({
@@ -252,6 +398,8 @@ def get_custom_bracelet_catalog():
             'stock': c['stock'],
             'image': c['image'],
             'thumbnail': c['image'],
+            'model_no': c.get('model_no', ''),
+            'color': c.get('color', 'Silver'),
             'variants': []
         })
     return jsonify({
@@ -313,6 +461,11 @@ def clear_charms_catalog():
 def list_charm_categories():
     return jsonify(database.get_charm_categories())
 
+
+# ================================================================
+# API: Customer Promo Codes & Checkout
+# ================================================================
+
 @app.route('/api/check-promo', methods=['GET'])
 def check_promo():
     code = (request.args.get('code') or '').strip().upper()
@@ -334,10 +487,10 @@ def universal_checkout():
     total = float(data.get('total', 0))
     promo = data.get('redeemCode', '')
     tg_user = data.get('telegram_user') or {}
-    
+
     username = tg_user.get('username') or name or 'customer'
     user = database.upsert_user(username, phone)
-    
+
     order_data = {
         'user_id': user['id'],
         'items': items,
@@ -353,7 +506,10 @@ def universal_checkout():
     return jsonify({'ok': True, 'order_id': order['id'], 'order': order})
 
 
-# --- API: Users ---
+# ================================================================
+# API: Users & Loyalty Points
+# ================================================================
+
 @app.route('/api/users/login', methods=['POST'])
 def user_login():
     data = request.json or {}
@@ -397,7 +553,11 @@ def redeem_voucher(user_id):
     u = database.get_user(user_id)
     return jsonify({'voucher': voucher, 'user': u})
 
-# --- API: Orders ---
+
+# ================================================================
+# API: Orders Desk (Customer Placement & Admin Processing)
+# ================================================================
+
 @app.route('/api/orders', methods=['GET'])
 def list_orders():
     user_id = request.args.get('user_id')
@@ -455,7 +615,11 @@ def update_status(order_id):
     order = database.set_order_status(order_id, status)
     return jsonify(order)
 
-# --- API: Notifications ---
+
+# ================================================================
+# API: Notifications
+# ================================================================
+
 @app.route('/api/notifications', methods=['GET'])
 def get_notifications():
     user_id = request.args.get('user_id')
@@ -469,19 +633,26 @@ def read_notifications():
     database.mark_notifications_read(order_id)
     return jsonify({'ok': True})
 
-# --- Fallback Static File Handler (Runs AFTER all API routes) ---
+
+# ================================================================
+# Fallback Static File Handler
+# ================================================================
+
 @app.route('/<path:filename>')
 def serve_static(filename):
     if filename.startswith('api/'):
         return jsonify({'error': 'API endpoint not found'}), 404
-    for candidate in [BASE_DIR, os.path.join(BASE_DIR, 'costumer'), os.path.join(BASE_DIR, 'Admin'), os.path.join(BASE_DIR, 'database')]:
-        target = os.path.join(candidate, filename)
-        if os.path.isfile(target):
-            return send_from_directory(candidate, filename)
+    target = os.path.join(BASE_DIR, filename)
+    if os.path.isfile(target):
+        return send_from_directory(BASE_DIR, filename)
     return index()
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
     debug = os.environ.get('DEBUG', 'False').lower() in ('true', '1')
-    print(f"Starting Somphea Reak Python server on http://127.0.0.1:{port}")
+    print("=" * 65)
+    print(f"✨ Somphea Reak Core API running on http://127.0.0.1:{port}")
+    print(f"🛡️  Middleware Active: Customer & Admin Request Separation & Auth Guard")
+    print(f"📦 Shared Database: sompheareak.db (SQLite)")
+    print("=" * 65)
     app.run(host='0.0.0.0', port=port, debug=debug)

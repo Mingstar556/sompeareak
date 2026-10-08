@@ -200,9 +200,19 @@ def init_db():
             image TEXT NOT NULL,
             sort_order INTEGER DEFAULT 0,
             active INTEGER DEFAULT 1,
+            model_no TEXT,
+            color TEXT DEFAULT 'Silver',
             created_at TEXT
         )
     ''')
+
+    # Migration check for model_no & color in existing charms table
+    c.execute("PRAGMA table_info(charms)")
+    _charm_cols = [r['name'] for r in c.fetchall()]
+    if 'model_no' not in _charm_cols:
+        c.execute("ALTER TABLE charms ADD COLUMN model_no TEXT")
+    if 'color' not in _charm_cols:
+        c.execute("ALTER TABLE charms ADD COLUMN color TEXT DEFAULT 'Silver'")
 
     # Auto-seed sample catalog if products table is empty (ensures clean clone starts with full catalog)
     c.execute('SELECT COUNT(*) as cnt FROM products')
@@ -931,6 +941,10 @@ def upsert_charm(data):
     image = str(data.get('image', '')).strip() or 'https://via.placeholder.com/150?text=Charm'
     sort_order = int(data.get('sort_order', 0))
     active = int(data.get('active', 1))
+    model_no = str(data.get('model_no', '')).strip()
+    if not model_no:
+        model_no = f"MD-{(sort_order or 1):03d}"
+    color = str(data.get('color', 'Silver')).strip() or 'Silver'
 
     c.execute('SELECT id FROM charms WHERE id = ?', (charm_id,))
     existing = c.fetchone()
@@ -938,14 +952,14 @@ def upsert_charm(data):
     if existing:
         c.execute('''
             UPDATE charms
-            SET name = ?, category = ?, price = ?, price_khr = ?, stock = ?, image = ?, sort_order = ?, active = ?
+            SET name = ?, category = ?, price = ?, price_khr = ?, stock = ?, image = ?, sort_order = ?, active = ?, model_no = ?, color = ?
             WHERE id = ?
-        ''', (name, category, price, price_khr, stock, image, sort_order, active, charm_id))
+        ''', (name, category, price, price_khr, stock, image, sort_order, active, model_no, color, charm_id))
     else:
         c.execute('''
-            INSERT INTO charms (id, name, category, price, price_khr, stock, image, sort_order, active, created_at)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        ''', (charm_id, name, category, price, price_khr, stock, image, sort_order, active, now()))
+            INSERT INTO charms (id, name, category, price, price_khr, stock, image, sort_order, active, model_no, color, created_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ''', (charm_id, name, category, price, price_khr, stock, image, sort_order, active, model_no, color, now()))
 
     conn.commit()
     conn.close()
@@ -980,9 +994,11 @@ def seed_default_charms():
         with open(seed_file, 'r', encoding='utf-8') as f:
             charms_list = json.load(f)
         for idx, item in enumerate(charms_list):
+            item_model = str(item.get('model_no', '')).strip() or f"MD-{(idx+1):03d}"
+            item_color = str(item.get('color', 'Silver')).strip() or 'Silver'
             c.execute('''
-                INSERT INTO charms (id, name, category, price, price_khr, stock, image, sort_order, active, created_at)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                INSERT INTO charms (id, name, category, price, price_khr, stock, image, sort_order, active, model_no, color, created_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             ''', (
                 item.get('id', f'ch_{idx}'),
                 item.get('name', f'Charm {idx+1}'),
@@ -993,6 +1009,8 @@ def seed_default_charms():
                 item.get('image', ''),
                 int(item.get('sort_order', idx)),
                 int(item.get('active', 1)),
+                item_model,
+                item_color,
                 now()
             ))
             seeded_count += 1

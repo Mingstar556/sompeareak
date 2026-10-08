@@ -1,4 +1,4 @@
-/* Somphea Reak – Customer Storefront with Bilingual Khmer/English & On-Site Admin Editing */
+/* Somphea Reak – Customer Storefront with Bilingual Khmer/English */
 const $ = (s, el = document) => el.querySelector(s);
 const $$ = (s, el = document) => Array.from(el.querySelectorAll(s));
 
@@ -46,7 +46,7 @@ const me = () => {
   if (u) return u;
   return {
     id: S.userId,
-    username: S.userId === 'Uadmin' ? 'admin' : 'vip_customer',
+    username: 'vip_customer',
     phone: '+855 12 888 999',
     points: 50,
     vouchers: [],
@@ -78,9 +78,6 @@ const I18N = {
     rememberMeText: 'ចងចាំខ្ញុំលើឧបករណ៍នេះ',
     clearLoginDataText: 'សម្អាតទិន្នន័យចូល',
     loginDataCleared: 'បានសម្អាតទិន្នន័យចូលគណនីរួចរាល់ ✨',
-    gateAdminLink: '🔐 ចូលផ្ទាំង Admin',
-    gateViewAdmin: '👑 មើលហាងជា Admin',
-    gateAdminDeskBtnText: 'ចូលផ្ទាំង Admin Desk (Store Owner)',
     clearFilter: 'សម្អាតការស្វែងរក',
     resultsFound: 'រកឃើញ {n} មុខទំនិញ',
 
@@ -89,26 +86,21 @@ const I18N = {
     myOrders: 'ប្រវត្តិកម្ម៉ង់',
     cart: 'កន្ត្រកទំនិញ',
     profile: 'គណនី',
-    adminPortal: 'ផ្ទាំង Admin',
 
     // Hero & Sections
     designCharmBtn: '🔗 រចនាខ្សែដៃអ៊ីតាលី (Custom Italy Charm)',
     rewardsBtn: '⭐ ពិន្ទុរង្វាន់',
-    uploadProdBtn: '＋ បន្ថែមទំនិញថ្មី',
     collectionsTitle: 'បណ្តុំម៉ូត និងប្រភេទផលិតផល',
     collectionsDesc: 'ស្វែងរកផលិតផលប្រណិតៗ វត្ថុអនុស្សាវរីយ៍ និងគ្រឿងអលង្ការកែច្នៃតាមចិត្ត',
-    addCategoryBtn: '＋ បន្ថែមប្រភេទថ្មី',
     itemsCount: 'មុខទំនិញ',
     backToHome: '← ត្រឡប់ទៅទំព័រដើម',
-    addProductHere: '＋ បន្ថែមទំនិញក្នុងប្រភេទនេះ',
     noItemsCat: 'មិនទាន់មានទំនិញក្នុងប្រភេទនេះនៅឡើយទេ',
     catalogCurating: 'ប្រភេទនេះកំពុងត្រូវបានរៀបចំទំនិញ',
-    uploadFirstProd: '＋ បន្ថែមទំនិញដំបូង',
     generalShopTitle: 'ហាងទំនិញរួម • ផលិតផលទាំងអស់',
     generalShopDesc: 'ស្វែងរក និងជ្រើសរើសទំនិញទាំងអស់ក្នុងស្ទូឌីយោដោយងាយស្រួល',
     allFilter: 'ទាំងអស់',
     searchPlaceholder: '🔍 ស្វែងរកទំនិញ...',
-    adminReasonNote: 'មូលហេតុពី Admin',
+    storeReasonNote: 'កំណត់សម្គាល់ពីហាង',
     voucherRefundedNotice: 'ប័ណ្ណបញ្ចុះតម្លៃត្រូវបានប្រគល់ជូនគណនីរបស់អ្នកវិញរួចរាល់ ✔',
 
     // Product Card & Taobao Features
@@ -184,9 +176,9 @@ const I18N = {
     // Order Placed modal
     orderSubmitted: 'ការកម្ម៉ង់ត្រូវបានដាក់ជូន!',
     orderRef: 'លេខយោងការកម្ម៉ង់',
-    pendingAdminNotice: 'វិក្កយបត្រត្រូវបានបញ្ជូនទៅ admin desk។',
-    pendingStatus: '⏳ កំពុងរង់ចាំការបញ្ជាក់ពី Admin',
-    pointsAwardNotice: 'ពិន្ទុ (+{p} pt) នឹងត្រូវបានបញ្ចូលដោយស្វ័យប្រវត្តិនៅពេល Admin អនុម័ត!',
+    pendingNotice: 'វិក្កយបត្រត្រូវបានបញ្ជូនទៅហាង។',
+    pendingStatus: '⏳ កំពុងរង់ចាំការបញ្ជាក់ពីហាង',
+    pointsAwardNotice: 'ពិន្ទុ (+{p} pt) នឹងត្រូវបានបញ្ចូលដោយស្វ័យប្រវត្តិនៅពេលការកម្ម៉ង់ត្រូវបានបញ្ជាក់!',
     viewMyOrders: 'មើលប្រវត្តិកម្ម៉ង់',
     viewOfficialReceipt: 'មើលវិក្កយបត្រផ្លូវការ',
 
@@ -246,31 +238,7 @@ const I18N = {
     logoutBtn: 'ចាកចេញពីគណនី',
     logoutConfirm: 'តើអ្នកពិតជាចង់ចាកចេញពីគណនី Telegram នេះមែនទេ?',
 
-    // Admin Bar
-    adminModeActive: '👑 Admin Mode សកម្ម',
-    adminModeDesc: '(អាចកែប្រែតម្លៃ ទំនិញ និងប្រភេទដោយផ្ទាល់លើទំព័រនេះ)',
-    addCategory: '＋ បន្ថែមប្រភេទ',
-    uploadProduct: '＋ បន្ថែមទំនិញ',
-    openAdminDesk: 'បើកផ្ទាំង Admin ↗',
-    exitAdminMode: 'ចាកចេញពី Admin Mode',
-
-    // Admin Quick Modals
-    quickEditTitle: 'កែប្រែតម្លៃ និងស្តុកទំនិញរហ័ស',
-    regularPrice: 'តម្លៃដើម ($)',
-    discountRate: 'អត្រាបញ្ចុះតម្លៃ (%)',
-    stockQty: 'ចំនួនក្នុងស្តុក',
-    pointsReward: 'ពិន្ទុរង្វាន់ (pt)',
-    calculatedFinal: 'តម្លៃចុងក្រោយដែលបានគណនា',
-    saveChanges: 'រក្សាទុកការកែប្រែ 💾',
-    deleteItem: 'លុបទំនិញនេះ 🗑️',
     cancel: 'បោះបង់',
-    quickAddCatTitle: 'បន្ថែមប្រភេទផលិតផលថ្មី',
-    catNameEn: 'ឈ្មោះប្រភេទ (English)',
-    catNameKh: 'ឈ្មោះប្រភេទជាភាសាខ្មែរ',
-    shortDesc: 'ការពិពណ៌នាខ្លី',
-    iconEmoji: 'រូបតំណាង Emoji',
-    gradientTheme: 'ពណ៌ Gradient Theme',
-    createCatBtn: 'បង្កើតប្រភេទថ្មី 💾',
     quickUploadTitle: 'បន្ថែមទំនិញថ្មីចូលហាង',
     productName: 'ឈ្មោះទំនិញ',
     categoryLabel: 'ប្រភេទផលិតផល',
@@ -298,9 +266,6 @@ const I18N = {
     rememberMeText: 'Remember me on this device',
     clearLoginDataText: 'Clear login data',
     loginDataCleared: 'Login data cleared from this browser ✨',
-    gateAdminLink: '🔐 Admin Login',
-    gateViewAdmin: '👑 View Shop as Admin',
-    gateAdminDeskBtnText: 'Admin Desk Portal (Store Owner)',
     clearFilter: 'Clear Search',
     resultsFound: 'Found {n} items',
 
@@ -309,26 +274,21 @@ const I18N = {
     myOrders: 'My orders',
     cart: 'Shopping Cart',
     profile: 'My Profile',
-    adminPortal: 'Admin Portal',
 
     // Hero & Sections
     designCharmBtn: '🔗 Design Italy Charm Bracelet',
     rewardsBtn: '⭐ Rewards',
-    uploadProdBtn: '＋ Upload Product',
     collectionsTitle: 'Studio Collections & Categories',
     collectionsDesc: 'Explore handcrafted pieces, collectibles, and customizable jewelry',
-    addCategoryBtn: '＋ Add Category',
     itemsCount: 'items',
     backToHome: '← Back to Collections',
-    addProductHere: '＋ Add Product Here',
     noItemsCat: 'No items in this category yet.',
     catalogCurating: 'Catalog currently being curated',
-    uploadFirstProd: '＋ Upload First Product',
     generalShopTitle: 'General Shop • All Collections',
     generalShopDesc: 'Browse and shop all studio items seamlessly in one place',
     allFilter: 'All Items',
     searchPlaceholder: '🔍 Search products...',
-    adminReasonNote: 'Reason from Admin',
+    storeReasonNote: 'Note from Store',
     voucherRefundedNotice: 'Voucher has been refunded back to your account ✔',
 
     // Product Card & Taobao Features
@@ -404,9 +364,9 @@ const I18N = {
     // Order Placed modal
     orderSubmitted: 'Order Submitted!',
     orderRef: 'Order Ref',
-    pendingAdminNotice: 'Receipt forwarded to admin desk.',
-    pendingStatus: '⏳ Pending Admin Confirmation',
-    pointsAwardNotice: 'Points (+{p} pt) will automatically be credited upon admin approval!',
+    pendingNotice: 'Receipt forwarded to store.',
+    pendingStatus: '⏳ Pending Confirmation',
+    pointsAwardNotice: 'Points (+{p} pt) will automatically be credited upon order confirmation!',
     viewMyOrders: 'View My Orders',
     viewOfficialReceipt: 'View Official Receipt',
 
@@ -466,31 +426,7 @@ const I18N = {
     logoutBtn: 'Log out',
     logoutConfirm: 'Log out of this Telegram account?',
 
-    // Admin Bar
-    adminModeActive: '👑 Admin Mode Active',
-    adminModeDesc: '(Edit prices, products & categories directly on this page)',
-    addCategory: '＋ Add Category',
-    uploadProduct: '＋ Upload Product',
-    openAdminDesk: 'Open Admin Desk ↗',
-    exitAdminMode: 'Exit Admin Mode',
-
-    // Admin Quick Modals
-    quickEditTitle: 'Quick Edit Product Price & Stock',
-    regularPrice: 'Regular Price ($)',
-    discountRate: 'Discount Rate (%)',
-    stockQty: 'Stock Inventory',
-    pointsReward: 'Points Reward (pt)',
-    calculatedFinal: 'Calculated Final Price',
-    saveChanges: 'Save Changes 💾',
-    deleteItem: 'Delete Item 🗑️',
     cancel: 'Cancel',
-    quickAddCatTitle: 'Add New Store Category',
-    catNameEn: 'Category Name (English)',
-    catNameKh: 'Khmer Display Title',
-    shortDesc: 'Short Description',
-    iconEmoji: 'Icon / Emoji',
-    gradientTheme: 'Color Gradient Theme',
-    createCatBtn: 'Create Category 💾',
     quickUploadTitle: 'Upload New Product',
     productName: 'Product Name',
     categoryLabel: 'Category',
@@ -560,13 +496,6 @@ function applyLanguageUI() {
   if (remText) remText.textContent = t('rememberMeText');
   const clrText = $('#clearLoginDataText');
   if (clrText) clrText.textContent = t('clearLoginDataText');
-  const gAdminLink = $('#gateAdminLink');
-  if (gAdminLink) gAdminLink.textContent = t('gateAdminLink');
-  const gViewAdminLink = $('#gateViewAdminLink');
-  if (gViewAdminLink) gViewAdminLink.textContent = t('gateViewAdmin');
-  const gAdminDeskBtn = $('#gateAdminDeskBtnText');
-  if (gAdminDeskBtn) gAdminDeskBtn.textContent = t('gateAdminDeskBtnText');
-
   // Navigation tooltips & buttons
   const nrBtn = $('#navRewardsBtn');
   if (nrBtn) nrBtn.title = t('myPoints');
@@ -576,29 +505,6 @@ function applyLanguageUI() {
   if (ncBtn) ncBtn.title = t('cart');
   const npBtn = $('#navProfileBtn');
   if (npBtn) npBtn.title = t('profile');
-}
-
-/* ---------- Secure Admin Mode Detection (Accessible via Admin Panel Only) ---------- */
-function isAdmin() {
-  const urlParams = new URLSearchParams(window.location.search);
-  const requested = urlParams.get('admin_edit') === '1' || urlParams.get('admin') === '1';
-  const isAuthorized = sessionStorage.getItem('sr_front_edit_authorized') === '1' ||
-                       localStorage.getItem('sr_front_edit_authorized') === '1' ||
-                       sessionStorage.getItem('sr_admin') === '1';
-  return Boolean(requested && isAuthorized);
-}
-
-function exitAdminMode() {
-  sessionStorage.removeItem('sr_front_edit_authorized');
-  localStorage.removeItem('sr_front_edit_authorized');
-  localStorage.removeItem('sr_admin_mode');
-  const url = new URL(window.location.href);
-  url.searchParams.delete('admin_edit');
-  url.searchParams.delete('admin');
-  window.history.replaceState({}, document.title, url.pathname + url.hash);
-  toast(S.lang === 'km' ? 'បានចាកចេញពី Admin Mode' : 'Exited Admin Edit Mode');
-  updateAdminBar();
-  route(false);
 }
 
 /* ---------- Utils ---------- */
@@ -856,30 +762,7 @@ function enterApp() {
   $('#loginGate').classList.add('hidden');
   $('#app').classList.remove('hidden');
   applyLanguageUI();
-  updateAdminBar();
   route();
-}
-
-/* ---------- Admin Mode Bar on Storefront ---------- */
-function updateAdminBar() {
-  const bar = $('#adminBar');
-  if (!bar) return;
-  if (isAdmin()) {
-    bar.innerHTML = `
-      <div class="admin-bar-title">
-        <span>${t('adminModeActive')}</span>
-        <span class="muted small">${t('adminModeDesc')}</span>
-      </div>
-      <div class="admin-bar-actions">
-        <button class="btn ghost sm" onclick="adminQuickAddCategory()">${t('addCategory')}</button>
-        <button class="btn ghost sm" onclick="adminQuickAddProduct()">${t('uploadProduct')}</button>
-        <a class="btn primary sm" href="admin.html" target="_blank">${t('openAdminDesk')}</a>
-        <button class="btn ghost sm" onclick="exitAdminMode()">${t('exitAdminMode')}</button>
-      </div>`;
-    bar.classList.remove('hidden');
-  } else {
-    bar.classList.add('hidden');
-  }
 }
 
 /* ---------- Router & Sync ---------- */
@@ -892,7 +775,7 @@ document.addEventListener('click', e => {
 });
 window.addEventListener('hashchange', () => route());
 
-// Live detection of order approval / update from Admin tab
+// Live detection of order approval / update from store
 let knownOrdersStatus = {};
 function checkOrderStatusChanges() {
   if (!S.userId) return;
@@ -927,33 +810,22 @@ function applyLogo() {
   if (favEl && favEl.getAttribute('href') !== logoSrc) favEl.href = logoSrc;
 }
 
-// Zero-delay reactive sync across open tabs & admin changes
+// Zero-delay reactive sync across open tabs & live database changes
 SRDB.onChange(() => {
   applyLogo();
   checkOrderStatusChanges();
   updateHeader();
-  updateAdminBar();
   if (me() && !$('#app').classList.contains('hidden') && !document.activeElement.matches('input,select,textarea')) {
     route(false);
   }
 });
 
 function route(scroll = true) {
-  if (!me()) {
-    if (isAdmin()) {
-      const u = SRDB.users()[0] || { id: 'Uadmin', username: 'admin', phone: '+855 12 000 000', points: 100, vouchers: [] };
-      S.userId = u.id;
-      save();
-      enterApp();
-      return;
-    }
-    return;
-  }
+  if (!me()) return;
   const h = location.hash.slice(1) || 'home';
   const views = { home, cart, orders, rewards, profile, checkout, 'custom-bracelet': customizer };
   (views[h] || (() => category(h)))();
   updateHeader();
-  updateAdminBar();
   if (scroll) window.scrollTo(0, 0);
 }
 
@@ -1156,7 +1028,7 @@ function onQuickAddToCart(id, event) {
 }
 
 function onProductCardClick(id, event) {
-  if (event.target.closest('.admin-prod-ctrl, .tb-cart-btn')) return;
+  if (event.target.closest('.tb-cart-btn')) return;
   openProductQuickView(id);
 }
 
@@ -1215,7 +1087,6 @@ function renderProductCard(p) {
   const k = SRDB.category(p.cat);
   const fp = SRDB.finalPrice(p);
   const out = p.stock <= 0;
-  const adminActive = isAdmin();
   const grad = k?.grad || 'linear-gradient(135deg,#10b981,#059669)';
   const soldCount = getProductSoldCount(p);
   const isHot = (p.discount && p.discount >= 15) || soldCount > 50;
@@ -1231,10 +1102,6 @@ function renderProductCard(p) {
       ${p.discount ? `<span class="tb-ribbon tb-ribbon-sale">-${p.discount}%</span>` : (isHot ? `<span class="tb-ribbon tb-ribbon-hot">HOT</span>` : '')}
       <span class="tb-chip-pt">⭐ +${p.pt} pt</span>
       ${out ? `<div class="tb-soldout-overlay"><span class="tb-soldout-badge">${t('soldOut')}</span></div>` : ''}
-      ${adminActive ? `
-        <button class="admin-prod-ctrl" onclick="adminQuickEditPrice('${p.id}', event)" title="Edit price & stock">
-          ✏️
-        </button>` : ''}
     </div>
     <div class="tb-body">
       <h3 class="tb-title">${esc(p.name)}</h3>
@@ -1288,7 +1155,6 @@ function home() {
   const c = cfg();
   const allProds = SRDB.products();
   const categories = SRDB.categories();
-  const adminActive = isAdmin();
   const isKm = S.lang === 'km';
 
   view(`
@@ -1300,7 +1166,6 @@ function home() {
     <div style="margin-top:22px;display:flex;gap:12px;justify-content:center;flex-wrap:wrap">
       <button class="btn primary" data-nav="custom-bracelet">${t('designCharmBtn')}</button>
       <button class="btn ghost" data-nav="rewards">⭐ ${(me()?.points || 0)} ${t('myPoints')} · ${t('rewardsBtn')}</button>
-      ${adminActive ? `<button class="btn ghost" onclick="adminQuickAddProduct()">${t('uploadProdBtn')}</button>` : ''}
     </div>
   </section>
 
@@ -1309,7 +1174,6 @@ function home() {
       <h2>${t('collectionsTitle')}</h2>
       <p class="muted">${t('collectionsDesc')}</p>
     </div>
-    ${adminActive ? `<button class="btn ghost sm" onclick="adminQuickAddCategory()">${t('addCategoryBtn')}</button>` : ''}
   </div>
 
   <div class="cats">
@@ -1319,11 +1183,6 @@ function home() {
       const subTitle = isKm ? (k.en || k.name || '') : (k.en || k.kh || '');
       return `
       <div class="glass cat" data-nav="${k.id}">
-        ${adminActive ? `
-          <div class="cat-actions" onclick="event.stopPropagation()">
-            <button class="cat-action-btn" onclick="adminEditCategory('${k.id}', event)" title="Edit Category">✏️</button>
-            ${k.id !== 'custom-bracelet' ? `<button class="cat-action-btn" onclick="adminDeleteCategory('${k.id}', event)" title="Delete Category">🗑️</button>` : ''}
-          </div>` : ''}
         <div class="art" style="background:${k.grad || 'linear-gradient(135deg,#10b981,#059669)'}">${k.icon || '🛍️'}</div>
         <div class="info">
           <h3>${esc(mainTitle)}</h3>
@@ -1334,13 +1193,42 @@ function home() {
         </div>
       </div>`;
     }).join('')}
+  </div>
 
-    ${adminActive ? `
-      <div class="glass cat add-cat-card" onclick="adminQuickAddCategory()">
-        <div style="font-size:2.8rem;color:#10b981">＋</div>
-        <b>${t('addCategoryBtn')}</b>
-        <p class="muted small">${t('shortDesc')}</p>
-      </div>` : ''}
+  <!-- Featured Italy Charm Studio Showcase Banner -->
+  <div class="glass panel featured-charm-hero-banner" style="margin-top:20px;margin-bottom:28px;padding:22px 24px;border-radius:22px;background:linear-gradient(135deg, rgba(234,88,12,0.08) 0%, rgba(255,255,255,0.02) 100%);border:1px solid rgba(234,88,12,0.25)">
+    <div style="display:flex;align-items:center;justify-content:space-between;gap:20px;flex-wrap:wrap">
+      <div style="display:flex;align-items:center;gap:18px;flex-wrap:wrap">
+        <div style="cursor:pointer" onclick="location.hash='#custom-bracelet'" title="${isKm ? 'ចុចដើម្បីរចនាខ្សែដៃ' : 'Click to design bracelet'}">
+          ${renderCharmModelHtml(SRDB.charms(true)[0] || { id: 'ch_0', name: 'Plain', image: 'logo.jpg' }, { size: 'hero', color: studioSelectedColor })}
+        </div>
+        <div>
+          <div style="display:inline-flex;align-items:center;gap:6px;margin-bottom:6px">
+            <span class="model-count-badge">✨ ${SRDB.charms(true).length}+ ${isKm ? 'ម៉ូតក្នុងហាង' : 'Shop Models Available'}</span>
+            <span class="badge" style="background:rgba(255,255,255,0.08)">6 Finishes</span>
+          </div>
+          <h2 class="kh" style="margin:0 0 4px;font-size:1.45rem;color:#ea580c">
+            ${isKm ? 'ស្ទូឌីយោរចនាខ្សែដៃអ៊ីតាលី (Custom Italy Charm)' : 'Custom Italy Charm Studio'}
+          </h2>
+          <p class="muted small" style="margin:0 0 10px;max-width:480px">
+            ${isKm ? 'រចនាខ្សែដៃអ៊ីតាលីផ្ទាល់ខ្លួន • គំរូគ្រាប់ពិត 9mm ដែកអ៊ីណុក • ពណ៌លំនាំដើម ប្រាក់, មាស, ខ្មៅ, ទឹកក្រូច, ក្រហម, ខៀវ' : 'Modular 9mm Italian charm links with real stainless steel chassis • Available in Silver, Gold, Black, Orange, Red & Blue'}
+          </p>
+          <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center">
+            ${CHARM_DEFAULT_COLORS.map(c => `
+              <span style="display:inline-flex;align-items:center;gap:4px;font-size:0.72rem;padding:3px 9px;border-radius:99px;background:rgba(255,255,255,0.04);border:1px solid var(--border)">
+                <span class="charm-color-dot" style="width:10px;height:10px;background:${c.dot}"></span>
+                ${isKm ? c.nameKm.split(' ')[0] : c.nameEn}
+              </span>
+            `).join('')}
+          </div>
+        </div>
+      </div>
+      <div>
+        <button class="btn primary" data-nav="custom-bracelet" style="padding:12px 24px;font-size:0.95rem;box-shadow:0 6px 18px rgba(234,88,12,0.3)">
+          🔗 ${isKm ? 'ចាប់ផ្តើមរចនាខ្សែដៃ' : 'Start Designing Bracelet ↗'}
+        </button>
+      </div>
+    </div>
   </div>
 
   <!-- General Shop (All Collections & Products) Directly Below Categories -->
@@ -1421,7 +1309,6 @@ function category(id) {
     items = items.filter(p => p.stock > 0);
   }
 
-  const adminActive = isAdmin();
   const isKm = S.lang === 'km';
   const mainTitle = isKm ? (k.kh || k.name) : (k.name || k.kh);
   const subTitle = isKm ? (k.en || '') : (k.en || k.kh || '');
@@ -1433,7 +1320,6 @@ function category(id) {
       <p class="muted">${esc(subTitle)}</p>
     </div>
     <div style="display:flex;gap:8px;align-items:center">
-      ${adminActive ? `<button class="btn ghost sm" onclick="adminQuickAddProduct('${k.id}')">${t('addProductHere')}</button>` : ''}
       <button class="btn ghost" data-nav="home">${t('backToHome')}</button>
     </div>
   </div>
@@ -1467,252 +1353,9 @@ function category(id) {
       <p class="muted small">${t('noItemsCat')}</p>
       <br>
       <div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap">
-        ${adminActive ? `<button class="btn primary" onclick="adminQuickAddProduct('${k.id}')">${t('uploadFirstProd')}</button>` : ''}
         <button class="btn ghost" data-nav="custom-bracelet">${t('designCharmBtn')}</button>
       </div>
     </div>`}`);
-}
-
-/* ================================================================
-   Admin On-Site Quick Modals (Category & Price Management)
-   ================================================================ */
-function adminQuickEditPrice(id, event) {
-  if (event) event.stopPropagation();
-  const p = SRDB.product(id);
-  if (!p) return;
-
-  modal(`
-  <h2>${t('quickEditTitle')}</h2>
-  <p class="muted small">${esc(p.name)}</p><br>
-  <div class="form-grid" style="text-align:left">
-    <div class="full">
-      <label for="qeName">${t('productName')}</label>
-      <input id="qeName" value="${esc(p.name)}">
-    </div>
-    <div>
-      <label for="qePrice">${t('regularPrice')}</label>
-      <input id="qePrice" type="number" step="0.01" min="0" value="${p.price}" oninput="updateQeFinal()">
-    </div>
-    <div>
-      <label for="qeDisc">${t('discountRate')}</label>
-      <input id="qeDisc" type="number" min="0" max="100" value="${p.discount || 0}" oninput="updateQeFinal()">
-    </div>
-    <div>
-      <label for="qeStock">${t('stockQty')}</label>
-      <input id="qeStock" type="number" min="0" value="${p.stock}">
-    </div>
-    <div>
-      <label for="qePt">${t('pointsReward')}</label>
-      <input id="qePt" type="number" min="0" value="${p.pt || 1}">
-    </div>
-    <div class="full">
-      <label>${t('calculatedFinal')}: <b class="price" id="qeFinal" style="font-size:1.2rem"></b></label>
-    </div>
-  </div>
-  <br>
-  <div style="display:flex;gap:10px;justify-content:center">
-    <button class="btn primary" onclick="saveQeProduct('${p.id}')">${t('saveChanges')}</button>
-    <button class="btn danger sm" onclick="adminDeleteProduct('${p.id}', '${esc(p.name).replace(/'/g, '')}')">${t('deleteItem')}</button>
-    <button class="btn ghost" onclick="closeModal()">${t('cancel')}</button>
-  </div>`);
-
-  updateQeFinal();
-}
-
-function updateQeFinal() {
-  const pr = parseFloat($('#qePrice')?.value) || 0;
-  const d = parseFloat($('#qeDisc')?.value) || 0;
-  const fp = +(pr * (1 - d / 100)).toFixed(2);
-  const el = $('#qeFinal');
-  if (el) el.textContent = money(fp);
-}
-
-async function saveQeProduct(id) {
-  const p = SRDB.product(id);
-  if (!p) return;
-  const name = $('#qeName').value.trim();
-  const price = parseFloat($('#qePrice').value);
-  if (!name || isNaN(price) || price < 0) return alert('Valid name and price required');
-
-  p.name = name;
-  p.price = price;
-  p.discount = Math.min(100, Math.max(0, parseFloat($('#qeDisc').value) || 0));
-  p.stock = Math.max(0, parseInt($('#qeStock').value) || 0);
-  p.pt = Math.max(0, parseInt($('#qePt').value) || 0);
-
-  await SRDB.upsertProduct(p);
-  closeModal();
-  toast(`Saved "${p.name}" ($${p.price.toFixed(2)})! Synced live.`);
-  route(false);
-}
-
-async function adminDeleteProduct(id, name) {
-  if (confirm(`Delete product "${name}" from store?`)) {
-    await SRDB.deleteProduct(id);
-    closeModal();
-    toast('Product deleted');
-    route(false);
-  }
-}
-
-function adminQuickAddCategory() {
-  modal(`
-  <h2>${t('quickAddCatTitle')}</h2>
-  <p class="muted small">${t('collectionsDesc')}</p><br>
-  <div class="form-grid" style="text-align:left">
-    <div>
-      <label for="qcatName">${t('catNameEn')}</label>
-      <input id="qcatName" placeholder="e.g. Luxury Necklaces" autofocus>
-    </div>
-    <div>
-      <label for="qcatKh">${t('catNameKh')}</label>
-      <input id="qcatKh" placeholder="e.g. ខ្សែករ & កងដៃ">
-    </div>
-    <div class="full">
-      <label for="qcatEn">${t('shortDesc')}</label>
-      <input id="qcatEn" placeholder="e.g. Handcrafted jewelry & accessories">
-    </div>
-    <div>
-      <label for="qcatIcon">${t('iconEmoji')}</label>
-      <input id="qcatIcon" value="✨" style="font-size:1.4rem">
-    </div>
-    <div>
-      <label for="qcatGrad">${t('gradientTheme')}</label>
-      <input id="qcatGrad" value="linear-gradient(135deg,#10b981,#059669)">
-    </div>
-  </div>
-  <br>
-  <div style="display:flex;gap:10px;justify-content:center">
-    <button class="btn primary" onclick="saveQuickCategory()">${t('createCatBtn')}</button>
-    <button class="btn ghost" onclick="closeModal()">${t('cancel')}</button>
-  </div>`);
-}
-
-function adminEditCategory(id, event) {
-  if (event) event.stopPropagation();
-  const c = SRDB.category(id);
-  if (!c) return;
-
-  modal(`
-  <h2>${t('addCategory')}: ${esc(c.name || c.kh)}</h2>
-  <p class="muted small">${t('shortDesc')}</p><br>
-  <div class="form-grid" style="text-align:left">
-    <div>
-      <label for="qcatName">${t('catNameEn')}</label>
-      <input id="qcatName" value="${esc(c.name)}">
-    </div>
-    <div>
-      <label for="qcatKh">${t('catNameKh')}</label>
-      <input id="qcatKh" value="${esc(c.kh)}">
-    </div>
-    <div class="full">
-      <label for="qcatEn">${t('shortDesc')}</label>
-      <input id="qcatEn" value="${esc(c.en)}">
-    </div>
-    <div>
-      <label for="qcatIcon">${t('iconEmoji')}</label>
-      <input id="qcatIcon" value="${esc(c.icon || '🛍️')}" style="font-size:1.4rem">
-    </div>
-    <div>
-      <label for="qcatGrad">${t('gradientTheme')}</label>
-      <input id="qcatGrad" value="${esc(c.grad)}">
-    </div>
-  </div>
-  <br>
-  <div style="display:flex;gap:10px;justify-content:center">
-    <button class="btn primary" onclick="saveQuickCategory('${c.id}')">${t('saveChanges')}</button>
-    <button class="btn ghost" onclick="closeModal()">${t('cancel')}</button>
-  </div>`);
-}
-
-async function saveQuickCategory(id) {
-  const name = $('#qcatName').value.trim();
-  const kh = $('#qcatKh').value.trim();
-  if (!name && !kh) return alert('Category name is required');
-
-  await SRDB.upsertCategory({
-    ...(id && { id }),
-    name: name || kh,
-    kh: kh || name,
-    en: $('#qcatEn').value.trim(),
-    icon: $('#qcatIcon').value.trim() || '🛍️',
-    grad: $('#qcatGrad').value.trim() || 'linear-gradient(135deg,#10b981,#059669)',
-  });
-
-  closeModal();
-  toast('Category saved live!');
-  route(false);
-}
-
-async function adminDeleteCategory(id, event) {
-  if (event) event.stopPropagation();
-  const c = SRDB.category(id);
-  if (!c) return;
-  if (confirm(`Delete category "${c.name || c.kh}"? Products will remain in database.`)) {
-    await SRDB.deleteCategory(id);
-    toast('Category removed');
-    route(false);
-  }
-}
-
-function adminQuickAddProduct(defaultCat = '') {
-  const cats = SRDB.categories();
-  modal(`
-  <h2>${t('quickUploadTitle')}</h2>
-  <p class="muted small">${t('collectionsDesc')}</p><br>
-  <div class="form-grid" style="text-align:left">
-    <div class="full">
-      <label for="qpName">${t('productName')}</label>
-      <input id="qpName" placeholder="e.g. 18K Gold Cuban Chain" autofocus>
-    </div>
-    <div>
-      <label for="qpCat">${t('categoryLabel')}</label>
-      <select id="qpCat">
-        ${cats.map(c => `<option value="${c.id}" ${defaultCat === c.id ? 'selected' : ''}>${esc(S.lang === 'km' ? (c.kh || c.name) : (c.name || c.kh))}</option>`).join('')}
-      </select>
-    </div>
-    <div>
-      <label for="qpPrice">${t('regularPrice')}</label>
-      <input id="qpPrice" type="number" step="0.01" min="0" placeholder="15.00">
-    </div>
-    <div>
-      <label for="qpDisc">${t('discountRate')}</label>
-      <input id="qpDisc" type="number" min="0" max="100" value="0">
-    </div>
-    <div>
-      <label for="qpStock">${t('stockQty')}</label>
-      <input id="qpStock" type="number" min="0" value="12">
-    </div>
-    <div class="full">
-      <label for="qpImg">${t('imageUrlOptional')}</label>
-      <input id="qpImg" placeholder="https://images.unsplash.com/photo-...">
-    </div>
-  </div>
-  <br>
-  <div style="display:flex;gap:10px;justify-content:center">
-    <button class="btn primary" onclick="saveQuickProduct()">${t('uploadProductAction')}</button>
-    <button class="btn ghost" onclick="closeModal()">${t('cancel')}</button>
-  </div>`);
-}
-
-async function saveQuickProduct() {
-  const name = $('#qpName').value.trim();
-  const price = parseFloat($('#qpPrice').value);
-  if (!name || isNaN(price) || price <= 0) return alert('Valid product name and price required');
-
-  await SRDB.upsertProduct({
-    name,
-    price,
-    cat: $('#qpCat').value,
-    discount: parseFloat($('#qpDisc').value) || 0,
-    stock: parseInt($('#qpStock').value) || 0,
-    pt: 1,
-    image: $('#qpImg').value.trim() || null,
-  });
-
-  closeModal();
-  toast('Product uploaded live to store!');
-  route(false);
 }
 
 /* ================================================================
@@ -2037,7 +1680,7 @@ async function placeOrder() {
     <div style="font-size:3.5rem;margin-bottom:8px">🧾</div>
     <h2>${t('orderSubmitted')}</h2>
     <p class="muted">${t('orderRef')}: <b>#${o.id}</b></p><br>
-    <p>${t('pendingAdminNotice')}<br><span class="status pending" style="margin-top:8px;display:inline-block">${t('pendingStatus')}</span></p>
+    <p>${t('pendingNotice')}<br><span class="status pending" style="margin-top:8px;display:inline-block">${t('pendingStatus')}</span></p>
     <p class="small muted" style="margin-top:12px">${t('pointsAwardNotice', { p: o.earned })}</p>
     <br>
     <div style="display:flex;gap:10px;justify-content:center">
@@ -2066,8 +1709,8 @@ function orders() {
           <div class="muted small">${new Date(o.createdAt || o.created_at).toLocaleString()} · ${(o.items || []).map(i => esc(i.name) + ' ×' + i.qty).join(', ')}</div>
           ${o.voucher ? `<div class="small" style="color:var(--ok);margin-top:2px">🎟️ Voucher: ${o.voucher}</div>` : ''}
           ${o.note ? `
-            <div class="order-admin-note ${o.status === 'Rejected' ? 'rejected-note' : ''}">
-              <div class="note-header">⚠️ ${t('adminReasonNote')}:</div>
+            <div class="order-store-note ${o.status === 'Rejected' ? 'rejected-note' : ''}">
+              <div class="note-header">⚠️ ${t('storeReasonNote')}:</div>
               <div class="note-body">${esc(o.note)}</div>
               ${o.voucher && o.status === 'Rejected' ? `<div class="small ok" style="margin-top:4px;font-weight:600">${t('voucherRefundedNotice')}</div>` : ''}
             </div>` : ''}
@@ -2126,7 +1769,7 @@ function viewCustomerReceipt(id) {
     ${t('payment')}: ${esc(contact.payment)}<br>
     ${t('status')}: <b>${o.status}</b><br>
     ${o.note ? `----------------------------------------<br>
-    <b style="color:var(--err)">⚠️ ${t('adminReasonNote')}:</b><br>
+    <b style="color:var(--err)">⚠️ ${t('storeReasonNote')}:</b><br>
     <span style="color:${o.status === 'Rejected' ? '#ef4444' : 'inherit'}">${esc(o.note)}</span><br>
     ${o.voucher && o.status === 'Rejected' ? `<span style="color:#10b981;font-size:0.8rem;font-weight:600">${t('voucherRefundedNotice')}</span><br>` : ''}` : ''}
     ----------------------------------------<br>
@@ -2226,11 +1869,22 @@ async function redeem() {
 /* ================================================================
    Views: 6. Custom Italy Charm Designer & Studio
    ================================================================ */
+const CHARM_DEFAULT_COLORS = [
+  { id: 'silver', nameKm: 'ប្រាក់ (Silver)', nameEn: 'Silver', dot: '#cbd5e1', border: '#94a3b8' },
+  { id: 'black',  nameKm: 'ខ្មៅ (Black)',   nameEn: 'Black',  dot: '#1e293b', border: '#475569' },
+  { id: 'orange', nameKm: 'ទឹកក្រូច (Orange)', nameEn: 'Orange', dot: '#ea580c', border: '#f97316' },
+  { id: 'red',    nameKm: 'ក្រហម (Red)',    nameEn: 'Red',    dot: '#dc2626', border: '#ef4444' },
+  { id: 'gold',   nameKm: 'មាស (Gold)',     nameEn: 'Gold',   dot: '#eab308', border: '#eab308' },
+  { id: 'blue',   nameKm: 'ខៀវ (Blue)',     nameEn: 'Blue',   dot: '#2563eb', border: '#3b82f6' }
+];
+
 let studioCharms = [];
 let studioSelectedUids = [];
 let studioCatFilter = 'all';
 let studioSearchQuery = '';
 let studioPkg = 'normal'; // 'normal' | 'premium'
+let studioSelectedColor = 'silver'; // Default metal finish: silver | black | orange | red | gold | blue
+let studioFocusedCharmId = null; // Charm actively previewed in inspection
 
 let studioDragItem = null;
 let studioDragStartX = 0;
@@ -2244,10 +1898,12 @@ function initStudioCharms() {
     if (saved) {
       const parsed = JSON.parse(saved);
       if (Array.isArray(parsed) && parsed.length) {
-        studioCharms = parsed.map(c => ({
+        studioCharms = parsed.slice(0, 18).map(c => ({
           uid: c.uid || ('lk_' + Math.random().toString(36).substr(2, 9)),
           id: c.id || c.db_id || c.ui_id,
           name: c.name || 'Italy Charm',
+          model_no: c.model_no || 'MD-001',
+          color: c.color || 'Silver',
           category: c.category || (Array.isArray(c.categories) ? c.categories[0] : 'Plain'),
           price: parseFloat(c.price) || 0.75,
           price_khr: parseInt(c.price_khr) || Math.round((parseFloat(c.price) || 0.75) * 4000),
@@ -2265,6 +1921,124 @@ function saveStudioCharms() {
   try {
     localStorage.setItem('customCharms', JSON.stringify(studioCharms));
   } catch (e) {}
+}
+
+function renderCharmModelHtml(ch, options = {}) {
+  const size = options.size || 'runway'; // 'hero' | 'runway' | 'grid' | 'zoom'
+  const imgUrl = ch?.image || 'logo.jpg';
+  const name = esc(ch?.name || 'Italy Charm');
+  const modelNo = esc(ch?.model_no || 'MD-001');
+  const titleAttr = options.title || `${name} (${modelNo})`;
+
+  return `
+    <div class="charm-png-wrap size-${size}" title="${titleAttr}">
+      <img src="${imgUrl}" alt="${name}" class="charm-png-img" loading="lazy" onerror="this.src='logo.jpg'">
+    </div>
+  `;
+}
+
+function setStudioColor(color) {
+  studioSelectedColor = color.toLowerCase();
+  document.querySelectorAll('.charm-color-chip').forEach(el => {
+    el.classList.toggle('active', el.dataset.color === studioSelectedColor);
+  });
+  const colorObj = CHARM_DEFAULT_COLORS.find(c => c.id === studioSelectedColor) || CHARM_DEFAULT_COLORS[0];
+  const lbl = $('#studioActiveColorLabel');
+  if (lbl) lbl.textContent = S.lang === 'km' ? colorObj.nameKm.split(' ')[0] : colorObj.nameEn;
+  if ($('#studioHeroStage')) renderStudioHeroStage();
+  renderStudioRunway();
+  renderStudioCatalog();
+  toast(S.lang === 'km' ? `បានជ្រើសរើសពណ៌: ${color.toUpperCase()} ✨` : `Selected finish: ${color.toUpperCase()} ✨`);
+}
+
+function setStudioFocusedCharm(id) {
+  studioFocusedCharmId = id;
+  if ($('#studioHeroStage')) renderStudioHeroStage();
+}
+
+function renderStudioHeroStage() {
+  const stage = $('#studioHeroStage');
+  if (!stage) return;
+  const all = SRDB.charms(true);
+  const ch = (studioFocusedCharmId ? SRDB.charm(studioFocusedCharmId) : null) || all[0] || {
+    id: 'ch_default',
+    name: 'Plain Stainless Link',
+    model_no: 'MD-001',
+    category: 'Plain',
+    price: 0.75,
+    price_khr: 3000,
+    image: 'https://res.cloudinary.com/dwwearehy/image/upload/v1775063355/x1dfa5orfmizgkgd6tgp.webp'
+  };
+
+  const isKm = S.lang === 'km';
+  const khr = ch.price_khr || Math.round((ch.price || 0.75) * 4000);
+  const colorObj = CHARM_DEFAULT_COLORS.find(c => c.id === studioSelectedColor) || CHARM_DEFAULT_COLORS[0];
+  const colorName = isKm ? colorObj.nameKm : colorObj.nameEn;
+
+  stage.innerHTML = `
+    <!-- Left: Jeweler's 3D Display Pedestal -->
+    <div class="charm-hero-pedestal" onclick="openStudioCharmZoom('${ch.id}')" title="${isKm ? 'ចុចដើម្បីពង្រីកពិនិត្យម៉ូត' : 'Click to inspect 3D model'}">
+      ${renderCharmModelHtml(ch, { size: 'hero', color: studioSelectedColor })}
+      <div style="margin-top:10px;text-align:center">
+        <span class="muted small" style="font-size:0.72rem;display:flex;align-items:center;gap:4px;justify-content:center">
+          🔍 ${isKm ? 'ចុចលើគ្រាប់ដើម្បីពង្រីក' : 'Click charm to zoom & inspect'}
+        </span>
+      </div>
+    </div>
+
+    <!-- Right: Model Details, Color Selector & Action -->
+    <div style="flex:1;min-width:0;text-align:left">
+      <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:6px">
+        <span class="model-count-badge" style="font-size:0.78rem">
+          ✨ ${isKm ? 'ម៉ូតលេខ' : 'Model'} #${esc(ch.model_no || 'MD-001')}
+        </span>
+        <span class="badge" style="font-size:0.75rem">${esc(ch.category || 'Classic')}</span>
+        <span class="badge ok" style="font-size:0.75rem">🟢 ${isKm ? 'មានក្នុងស្តុក' : 'In Stock'}</span>
+      </div>
+
+      <h3 style="margin:0 0 6px;font-size:1.3rem;color:var(--text)">${esc(ch.name)}</h3>
+      
+      <div style="display:flex;gap:12px;align-items:baseline;margin-bottom:10px">
+        <span style="font-size:1.35rem;font-weight:800;color:#ea580c">${khr.toLocaleString()}៛</span>
+        <span class="muted" style="font-size:0.9rem">(${money(ch.price || 0.75)})</span>
+        <span class="muted small" style="font-size:0.75rem">· 9mm Modular 316L Stainless Steel</span>
+      </div>
+
+      <!-- Color Finishes Selector -->
+      <div class="charm-color-selector-wrap">
+        <div class="charm-color-selector-header">
+          <span class="charm-color-selector-title">
+            🎨 ${isKm ? 'ជ្រើសរើសពណ៌គ្រាប់ខ្សែដៃ' : 'Select Charm Finish / Color'}:
+            <b style="color:#ea580c;text-transform:capitalize">${colorName}</b>
+          </span>
+          <span class="muted small" style="font-size:0.72rem">${isKm ? 'ពណ៌លំនាំដើមទាំង ៦ អាចជ្រើសរើសបាន' : '6 Default Metallic Finishes'}</span>
+        </div>
+        <div class="charm-color-swatches">
+          ${CHARM_DEFAULT_COLORS.map(c => `
+            <button type="button" 
+                    class="charm-color-chip ${studioSelectedColor === c.id ? 'active' : ''}" 
+                    data-color="${c.id}" 
+                    style="--chip-border:${c.border}"
+                    onclick="setStudioColor('${c.id}')"
+                    title="${isKm ? c.nameKm : c.nameEn}">
+              <span class="charm-color-dot" style="background:${c.dot}"></span>
+              <span>${isKm ? c.nameKm.split(' ')[0] : c.nameEn}</span>
+            </button>
+          `).join('')}
+        </div>
+      </div>
+
+      <!-- Stage Actions -->
+      <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:14px">
+        <button type="button" class="btn primary sm" onclick="addStudioCharm('${ch.id}')" style="box-shadow:0 4px 14px rgba(234,88,12,0.3)">
+          ＋ ${isKm ? 'បន្ថែមគ្រាប់នេះចូលខ្សែដៃ' : 'Add Model to Bracelet'}
+        </button>
+        <button type="button" class="btn ghost sm" onclick="addRandomStudioCharm()" title="${isKm ? 'ជ្រើសរើសគ្រាប់ចៃដន្យ' : 'Pick random model'}">
+          🎲 ${isKm ? 'ម៉ូតចៃដន្យ' : 'Random Model'}
+        </button>
+      </div>
+    </div>
+  `;
 }
 
 function getStudioDesignCode() {
@@ -2324,6 +2098,8 @@ function loadStudioDesignCode() {
         uid: 'lk_' + Math.random().toString(36).substr(2, 9),
         id: ch.id,
         name: ch.name,
+        model_no: ch.model_no || 'MD-001',
+        color: ch.color || studioSelectedColor || 'silver',
         category: ch.category || 'Plain',
         price: parseFloat(ch.price) || 0.75,
         price_khr: parseInt(ch.price_khr) || Math.round((parseFloat(ch.price) || 0.75) * 4000),
@@ -2360,6 +2136,10 @@ function clearStudioBracelet() {
 function duplicateStudioSelected() {
   if (!studioSelectedUids.length) return;
   const itemsToDup = studioCharms.filter(c => studioSelectedUids.includes(c.uid));
+  if (studioCharms.length + itemsToDup.length > 18) {
+    playChime('error');
+    return toast(S.lang === 'km' ? 'កម្រិតអតិបរមា ១៨ គ្រាប់! (មិនអាចបន្ថែមទៀតទេ) ⚠️' : 'Cannot exceed 18 charms limit! ⚠️');
+  }
   let maxIdx = -1;
   studioCharms.forEach((c, i) => { if (studioSelectedUids.includes(c.uid)) maxIdx = i; });
   const duplicated = itemsToDup.map(c => ({
@@ -2476,6 +2256,27 @@ function scrollStudioRunway(delta) {
   if (rw) rw.scrollBy({ left: delta, behavior: 'smooth' });
 }
 
+function handleStudioPreviewScroll(el) {
+  const thumb = $('#studioScrollThumb');
+  if (!thumb || !el) return;
+  const maxScroll = el.scrollWidth - el.clientWidth;
+  if (maxScroll <= 0) {
+    thumb.style.left = '0%';
+    return;
+  }
+  const ratio = el.scrollLeft / maxScroll;
+  const maxPercent = 65; // thumb width is 35%
+  thumb.style.left = `${Math.min(maxPercent, Math.max(0, ratio * maxPercent))}%`;
+}
+
+function handleStudioBackgroundClick(e) {
+  if (e.target.closest('.bracelet-link-slot') || e.target.closest('.link-remove-btn')) return;
+  if (studioSelectedUids.length > 0) {
+    studioSelectedUids = [];
+    renderStudioRunway();
+  }
+}
+
 function setStudioPkg(pkgType) {
   studioPkg = pkgType;
   document.querySelectorAll('.pkg-option-card').forEach(el => {
@@ -2490,10 +2291,21 @@ function addStudioCharm(id) {
   if (ch.stock !== undefined && ch.stock <= 0) {
     return toast(S.lang === 'km' ? 'គ្រាប់ត្បូងនេះអស់ពីស្តុកហើយ' : 'This charm is currently out of stock');
   }
+
+  // LIMIT: Maximum 18 charms cannot add more!
+  if (studioCharms.length >= 18) {
+    playChime('error');
+    return toast(S.lang === 'km' ? 'ខ្សែដៃអាចដាក់បានច្រើនបំផុត ១៨ គ្រាប់! (កម្រិតអតិបរមា) ⚠️' : 'Maximum 18 charms reached! Standard bracelet is 16–18 links. ⚠️');
+  }
+
+  setStudioFocusedCharm(ch.id);
+
   const newCharm = {
     uid: 'lk_' + Math.random().toString(36).substr(2, 9),
     id: ch.id,
     name: ch.name,
+    model_no: ch.model_no || 'MD-001',
+    color: ch.color || studioSelectedColor || 'silver',
     category: ch.category || 'Plain',
     price: parseFloat(ch.price) || 0.75,
     price_khr: parseInt(ch.price_khr) || Math.round((parseFloat(ch.price) || 0.75) * 4000),
@@ -2506,6 +2318,13 @@ function addStudioCharm(id) {
   renderStudioRunway();
   playChime('success');
 
+  const count = studioCharms.length;
+  if (count === 16) {
+    toast(S.lang === 'km' ? '✨ គ្រប់ចំនួនអប្បបរមា ១៦ គ្រាប់ហើយ! អាចកុម្ម៉ង់បាន ឬថែមរហូតដល់ ១៨' : '✨ Minimum 16 links reached! Ready to wear or add up to 18.');
+  } else if (count === 18) {
+    toast(S.lang === 'km' ? '✨ ពេញអតិបរមា ១៨ គ្រាប់ហើយ!' : '✨ Maximum 18 links reached!');
+  }
+
   setTimeout(() => {
     const rw = $('#studioTrackRunway');
     if (rw) rw.scrollTo({ left: rw.scrollWidth, behavior: 'smooth' });
@@ -2517,7 +2336,7 @@ function addRandomStudioCharm() {
   if (!available.length) return toast(S.lang === 'km' ? 'មិនមានត្បូងក្នុងស្តុកទេ' : 'No charms available in stock');
   const pick = available[Math.floor(Math.random() * available.length)];
   addStudioCharm(pick.id);
-  toast(S.lang === 'km' ? `បានបន្ថែម ${pick.name} 🎲` : `Added random: ${pick.name} 🎲`);
+  toast(S.lang === 'km' ? `បានបន្ថែម ${pick.name} (${pick.model_no || 'MD-001'}) 🎲` : `Added random: ${pick.name} 🎲`);
 }
 
 function openStudioCharmZoom(id) {
@@ -2526,10 +2345,28 @@ function openStudioCharmZoom(id) {
   const isKm = S.lang === 'km';
   const modal = $('#studioCharmZoomModal');
   if (!modal) return;
-  $('#studioZoomImg').src = ch.image;
+  const khr = ch.price_khr || Math.round((ch.price || 0.75) * 4000);
+
+  const zoomBox = $('#studioZoomModelBox');
+  if (zoomBox) {
+    zoomBox.innerHTML = renderCharmModelHtml(ch, { size: 'zoom', color: studioSelectedColor });
+  }
   $('#studioZoomName').textContent = ch.name;
+  $('#studioZoomModelNo').textContent = `${isKm ? 'ម៉ូតលេខ' : 'Model'}: #${ch.model_no || 'MD-001'}`;
   $('#studioZoomCat').textContent = `${isKm ? 'ប្រភេទ' : 'Category'}: ${ch.category || 'Plain'}`;
-  $('#studioZoomPrice').textContent = `${(ch.price_khr || Math.round((ch.price || 0.75) * 4000)).toLocaleString()}៛ (${money(ch.price || 0.75)})`;
+  $('#studioZoomPrice').textContent = `${khr.toLocaleString()}៛ (${money(ch.price || 0.75)})`;
+  
+  const colorPills = $('#studioZoomColorPills');
+  if (colorPills) {
+    colorPills.innerHTML = CHARM_DEFAULT_COLORS.map(c => `
+      <button type="button" class="studio-color-btn ${studioSelectedColor === c.id ? 'active' : ''}" 
+              style="background:${c.dot};width:26px;height:26px;border-radius:50%;border:2px solid rgba(255,255,255,0.6);cursor:pointer;padding:0" 
+              onclick="setStudioColor('${c.id}'); if($('#studioZoomModelBox')) $('#studioZoomModelBox').innerHTML = renderCharmModelHtml(SRDB.charm('${ch.id}'), { size: 'zoom', color: '${c.id}' });" 
+              title="${c.nameEn}">
+      </button>
+    `).join('');
+  }
+
   $('#studioZoomAddBtn').onclick = () => {
     closeStudioCharmZoom();
     addStudioCharm(ch.id);
@@ -2571,8 +2408,9 @@ function renderStudioCatalog() {
     if (q) {
       const name = (ch.name || '').toLowerCase();
       const id = (ch.id || '').toLowerCase();
+      const modelNo = (ch.model_no || '').toLowerCase();
       const cCat = (ch.category || '').toLowerCase();
-      if (!name.includes(q) && !id.includes(q) && !cCat.includes(q)) return false;
+      if (!name.includes(q) && !id.includes(q) && !modelNo.includes(q) && !cCat.includes(q)) return false;
     }
     return true;
   });
@@ -2581,7 +2419,7 @@ function renderStudioCatalog() {
     grid.innerHTML = `
       <div style="grid-column:1/-1;text-align:center;padding:30px 10px;opacity:0.6">
         <div style="font-size:2rem;margin-bottom:6px">🔍</div>
-        <p class="muted small">${S.lang === 'km' ? 'រកមិនឃើញគ្រាប់ត្បូងដែលត្រូវនឹងលក្ខខណ្ឌស្វែងរកទេ' : 'No charms match your search or filter'}</p>
+        <p class="muted small">${S.lang === 'km' ? 'រកមិនឃើញម៉ូតគ្រាប់ត្បូងដែលត្រូវនឹងលក្ខខណ្ឌស្វែងរកទេ' : 'No charm models match your search or filter'}</p>
       </div>`;
     return;
   }
@@ -2589,18 +2427,29 @@ function renderStudioCatalog() {
   grid.innerHTML = filtered.map(ch => {
     const isOut = (ch.stock !== undefined && ch.stock <= 0);
     const khr = ch.price_khr || Math.round((ch.price || 0.75) * 4000);
+    const modelTag = esc(ch.model_no || 'MD-001');
+    const isFocused = (studioFocusedCharmId === ch.id);
     return `
-      <div class="charm-card-item ${isOut ? 'out-of-stock' : ''}" 
-           onclick="if(!${isOut}) addStudioCharm('${ch.id}')"
-           title="${esc(ch.name)}">
-        ${isOut ? `<span style="position:absolute;top:4px;right:4px;background:#ef4444;color:#fff;font-size:0.55rem;font-weight:800;padding:1px 4px;border-radius:4px;z-index:2">OUT</span>` : ''}
+      <div class="charm-card-item ${isOut ? 'out-of-stock' : ''} ${isFocused ? 'selected' : ''}" 
+           onclick="setStudioFocusedCharm('${ch.id}'); if(!${isOut}) addStudioCharm('${ch.id}');"
+           title="${esc(ch.name)} (${modelTag})">
+        <!-- Top Row: Model Tag & Stock -->
+        <div style="width:100%;display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
+          <span class="charm-model-tag">${modelTag}</span>
+          ${isOut ? `<span style="background:#ef4444;color:#fff;font-size:0.55rem;font-weight:800;padding:1px 4px;border-radius:4px">OUT</span>` : ''}
+        </div>
+
+        <!-- Zoom button -->
         <button type="button" onclick="event.stopPropagation();openStudioCharmZoom('${ch.id}')" 
-                style="position:absolute;top:4px;left:4px;width:20px;height:20px;border-radius:50%;background:rgba(0,0,0,0.4);border:none;color:#fff;font-size:10px;display:flex;align-items:center;justify-content:center;cursor:pointer;z-index:2" title="Zoom">
+                style="position:absolute;top:22px;right:6px;width:22px;height:22px;border-radius:50%;background:rgba(0,0,0,0.5);border:none;color:#fff;font-size:10px;display:flex;align-items:center;justify-content:center;cursor:pointer;z-index:4" title="Zoom">
           🔍
         </button>
+
+        <!-- Center: Authentic Charm PNG Display -->
         <div class="charm-card-thumb">
-          <img src="${ch.image || 'logo.jpg'}" alt="${esc(ch.name)}" loading="lazy" onerror="this.src='logo.jpg'">
+          <img src="${ch.image || 'logo.jpg'}" alt="${esc(ch.name)}" class="charm-card-png" loading="lazy" onerror="this.src='logo.jpg'">
         </div>
+
         <span class="charm-card-title">${esc(ch.name)}</span>
         <span class="charm-card-price">${khr.toLocaleString()}៛</span>
       </div>`;
@@ -2617,32 +2466,77 @@ function renderStudioRunway() {
   const charmsTotalUSD = studioCharms.reduce((sum, ch) => sum + (parseFloat(ch.price) || c.charmPrice || 0.75), 0);
   const charmsTotalKHR = studioCharms.reduce((sum, ch) => sum + (parseInt(ch.price_khr) || Math.round((parseFloat(ch.price) || 0.75) * 4000)), 0);
 
-  const pkgFeeUSD = studioPkg === 'premium' ? (c.packagingFee || 1.25) : 0;
-  const pkgFeeKHR = studioPkg === 'premium' ? Math.round((c.packagingFee || 1.25) * 4000) : 0;
+  const grandUSD = (c.customBasePrice || 0) + charmsTotalUSD;
+  const grandKHR = Math.round((c.customBasePrice || 0) * 4000) + charmsTotalKHR;
 
-  const grandUSD = (c.customBasePrice || 0) + charmsTotalUSD + pkgFeeUSD;
-  const grandKHR = Math.round((c.customBasePrice || 0) * 4000) + charmsTotalKHR + pkgFeeKHR;
-
-  // Header badges & subtotal
-  const badgeCount = $('#studioHeaderCount');
-  if (badgeCount) badgeCount.textContent = `${count} ${isKm ? 'គ្រាប់' : 'Charms'}`;
+  // Header Count & Price
+  const countEl = $('#studioHeaderCount');
+  if (countEl) countEl.textContent = count;
 
   const badgePrice = $('#studioHeaderPrice');
-  if (badgePrice) badgePrice.textContent = `${grandKHR.toLocaleString()}៛ (${money(grandUSD)})`;
+  if (badgePrice) badgePrice.textContent = `${grandKHR.toLocaleString()}៛`;
 
-  // Action buttons
+  // Dynamic Duplicate & Delete action buttons in top bar (Matching reference studio)
   const dupBtn = $('#studioDuplicateBtn');
+  if (dupBtn) {
+    if (studioSelectedUids.length > 0) {
+      dupBtn.classList.remove('hidden');
+      dupBtn.style.display = 'inline-flex';
+    } else {
+      dupBtn.classList.add('hidden');
+      dupBtn.style.display = 'none';
+    }
+  }
   const delBtn = $('#studioDeleteBtn');
-  const selCount = studioSelectedUids.length;
-  if (dupBtn) dupBtn.style.display = selCount ? 'inline-flex' : 'none';
-  if (delBtn) delBtn.style.display = selCount ? 'inline-flex' : 'none';
+  if (delBtn) {
+    if (studioSelectedUids.length > 0) {
+      delBtn.classList.remove('hidden');
+      delBtn.style.display = 'inline-flex';
+    } else {
+      delBtn.classList.add('hidden');
+      delBtn.style.display = 'none';
+    }
+  }
 
-  // Share Code
-  const codeInp = $('#studioShareCodeInput');
-  if (codeInp) codeInp.value = getStudioDesignCode();
+  // Limit status badge (Min 16, Max 18)
+  const limitStatusEl = $('#studioLimitStatus');
+  if (limitStatusEl) {
+    if (count === 0) {
+      limitStatusEl.innerHTML = `
+        <span class="limit-status-badge empty">
+          📏 0 / 18 Links <span class="sub-text">(${isKm ? 'ទំហំស្តង់ដារ: ១៦ ដល់ ១៨ គ្រាប់' : '16–18 links required'})</span>
+        </span>
+      `;
+    } else if (count < 16) {
+      const needed = 16 - count;
+      limitStatusEl.innerHTML = `
+        <span class="limit-status-badge warning">
+          ⚠️ ${count} / 16 Min Links <span class="sub-text">(${isKm ? `ត្រូវការថែម ${needed} គ្រាប់ទៀត` : `Add ${needed} more to fit`})</span>
+        </span>
+      `;
+    } else if (count >= 16 && count < 18) {
+      const canAdd = 18 - count;
+      limitStatusEl.innerHTML = `
+        <span class="limit-status-badge ok">
+          🟢 ${count} / 18 Links <span class="sub-text">(${isKm ? `ទំហំស្តង់ដារ • អាចថែម ${canAdd}` : `Ready to wear! Can add ${canAdd}`})</span>
+        </span>
+      `;
+    } else {
+      limitStatusEl.innerHTML = `
+        <span class="limit-status-badge max">
+          ✨ 18 / 18 Links <span class="sub-text">(${isKm ? 'ពេញអតិបរមាហើយ' : 'Maximum reached'})</span>
+        </span>
+      `;
+    }
+  }
 
-  // Runway Links
+  // Runway Links Centered in Box
+  const navBar = $('#studioNavIndicatorBar');
   if (count === 0) {
+    if (navBar) {
+      navBar.style.opacity = '0';
+      navBar.style.pointerEvents = 'none';
+    }
     runway.innerHTML = `
       <div class="empty-track-placeholder" onclick="$('#studioCharmsGrid')?.scrollIntoView({behavior:'smooth'})">
         <div class="starter-dummy-links">
@@ -2651,75 +2545,114 @@ function renderStudioRunway() {
           <div class="dummy-link">＋</div>
           <div class="dummy-link">＋</div>
         </div>
-        <p style="font-weight:700;margin:0;font-size:0.9rem;color:var(--text)">
+        <p style="font-weight:700;margin:0 0 4px;font-size:1rem;color:var(--text)">
           ✨ ${isKm ? 'ចាប់ផ្តើមរចនាខ្សែដៃរបស់អ្នក' : 'Start Designing Your Bracelet'}
         </p>
-        <span class="muted small">
-          ${isKm ? 'ចុចលើគ្រាប់ត្បូងខាងក្រោមដើម្បីដាក់ចូលខ្សែដៃ (Click any charm below)' : 'Select charm links below to assemble onto the runway'}
+        <span class="muted small" style="font-size:0.82rem">
+          ${isKm ? 'ចុចលើគ្រាប់ត្បូងខាងក្រោមដើម្បីដាក់ចូលខ្សែដៃ (កម្រិត ១៦ ដល់ ១៨ គ្រាប់)' : 'Click any charm below to add (16 to 18 links required)'}
         </span>
       </div>`;
   } else {
-    runway.innerHTML = studioCharms.map((ch, idx) => {
-      const isSel = studioSelectedUids.includes(ch.uid);
-      return `
-        <div class="bracelet-link-slot ${isSel ? 'selected' : ''}" 
-             data-uid="${ch.uid}"
-             onpointerdown="onStudioLinkPointerDown(event, '${ch.uid}', ${idx})"
-             title="${esc(ch.name)} (${idx + 1})">
-          <div class="link-metal-frame">
-            <img src="${ch.image || 'logo.jpg'}" alt="${esc(ch.name)}" draggable="false">
-          </div>
-          <div class="link-connector"></div>
-          <button type="button" class="link-remove-btn" 
-                  onpointerdown="removeStudioCharm('${ch.uid}', event)" 
-                  title="${isKm ? 'លុបគ្រាប់នេះ' : 'Remove link'}">✕</button>
-        </div>`;
-    }).join('');
+    if (navBar) {
+      navBar.style.opacity = '1';
+      navBar.style.pointerEvents = 'auto';
+    }
+    runway.innerHTML = `
+      <div class="bracelet-links-track" id="studioLinksTrack">
+        ${studioCharms.map((ch, idx) => {
+          const isSel = studioSelectedUids.includes(ch.uid);
+          const linkColor = ch.color || studioSelectedColor;
+          return `
+            <div class="bracelet-link-slot ${isSel ? 'selected' : ''}" 
+                 data-uid="${ch.uid}"
+                 onpointerdown="onStudioLinkPointerDown(event, '${ch.uid}', ${idx})"
+                 title="${esc(ch.name)} (${idx + 1}) - ${esc(ch.model_no || 'MD-001')}">
+              <img src="${ch.image || 'logo.jpg'}" alt="${esc(ch.name)}" class="bracelet-link-png" draggable="false" onerror="this.src='logo.jpg'">
+              <button type="button" class="link-remove-btn" 
+                      onpointerdown="removeStudioCharm('${ch.uid}', event)" 
+                      title="${isKm ? 'លុបគ្រាប់នេះ' : 'Remove link'}">
+                <svg viewBox="0 0 24 24" width="12" height="12" fill="currentColor">
+                  <path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/>
+                </svg>
+              </button>
+              <div class="bracelet-interlink-connector" aria-hidden="true"></div>
+            </div>`;
+        }).join('')}
+      </div>`;
+    handleStudioPreviewScroll(runway);
   }
 
   // Sticky bottom summary bar elements
   const sumCount = $('#studioSummaryCount');
-  if (sumCount) sumCount.textContent = `${count} ${isKm ? 'គ្រាប់' : 'Links'}`;
+  if (sumCount) {
+    if (count < 16) {
+      sumCount.textContent = `${count} / 16 Min Links (${16 - count} more needed)`;
+      sumCount.className = 'badge err';
+    } else if (count >= 16 && count < 18) {
+      sumCount.textContent = `${count} / 18 Links (Fit OK)`;
+      sumCount.className = 'badge ok';
+    } else {
+      sumCount.textContent = `18 / 18 Links (Max Limit)`;
+      sumCount.className = 'badge ok';
+    }
+  }
 
   const sumPrice = $('#studioSummaryPrice');
   if (sumPrice) sumPrice.textContent = `${grandKHR.toLocaleString()}៛ (${money(grandUSD)})`;
 
   const addCartBtn = $('#studioAddToCartBtn');
   if (addCartBtn) {
-    addCartBtn.disabled = count === 0;
-    addCartBtn.style.opacity = count === 0 ? '0.5' : '1';
-    addCartBtn.style.cursor = count === 0 ? 'not-allowed' : 'pointer';
+    if (count < 16) {
+      addCartBtn.disabled = true;
+      addCartBtn.style.opacity = '0.55';
+      addCartBtn.style.cursor = 'not-allowed';
+      addCartBtn.innerHTML = `🛒 ${isKm ? `ត្រូវការថែម ${16 - count} គ្រាប់ទៀត` : `Add ${16 - count} more links`} (${count}/16)`;
+    } else {
+      addCartBtn.disabled = false;
+      addCartBtn.style.opacity = '1';
+      addCartBtn.style.cursor = 'pointer';
+      addCartBtn.innerHTML = `🛒 ${isKm ? 'ដាក់ខ្សែដៃចូលកន្ត្រក' : 'Add Bracelet to Cart'} (${count} Links)`;
+    }
   }
 }
 
 function addStudioBraceletToCart() {
-  if (!studioCharms.length) {
-    return toast(S.lang === 'km' ? 'សូមជ្រើសរើសត្បូងយ៉ាងហោចណាស់មួយ!' : 'Please add at least 1 charm link to your bracelet!');
-  }
-  const c = cfg();
+  const count = studioCharms.length;
   const isKm = S.lang === 'km';
-  const pkgTitle = studioPkg === 'premium'
-    ? (isKm ? 'ប្រអប់កាដូ Premium (+5,000៛)' : 'Luxury Gift Box (+$1.25)')
-    : (isKm ? 'ថង់ធម្មតា (ឥតគិតថ្លៃ)' : 'Standard Pouch (Free)');
+  if (count < 16) {
+    playChime('error');
+    return toast(isKm 
+      ? `ខ្សែដៃតម្រូវឱ្យមានយ៉ាងតិច ១៦ គ្រាប់ (បច្ចុប្បន្នមានតែ ${count} គ្រាប់ប៉ុណ្ណោះ)! សូមជ្រើសរើស ${16 - count} គ្រាប់ទៀត ⚠️` 
+      : `Minimum 16 charms required for a bracelet! (Current: ${count}/16). Please add ${16 - count} more. ⚠️`);
+  }
+  if (count > 18) {
+    playChime('error');
+    return toast(isKm 
+      ? `ខ្សែដៃអាចដាក់បានច្រើនបំផុត ១៨ គ្រាប់ (បច្ចុប្បន្ន: ${count}/18)!` 
+      : `Maximum 18 charms allowed! (Current: ${count}/18).`);
+  }
+
+  const c = cfg();
   const code = getStudioDesignCode();
+  const colorObj = CHARM_DEFAULT_COLORS.find(c => c.id === studioSelectedColor) || CHARM_DEFAULT_COLORS[0];
+  const colorName = isKm ? colorObj.nameKm.split(' ')[0] : colorObj.nameEn;
 
   const charmsTotalUSD = studioCharms.reduce((sum, ch) => sum + (parseFloat(ch.price) || c.charmPrice || 0.75), 0);
-  const pkgFeeUSD = studioPkg === 'premium' ? (c.packagingFee || 1.25) : 0;
-  const grandUSD = (c.customBasePrice || 0) + charmsTotalUSD + pkgFeeUSD;
+  const grandUSD = (c.customBasePrice || 0) + charmsTotalUSD;
   const grandKHR = Math.round(grandUSD * 4000);
 
   const customItem = {
-    name: isKm ? `ខ្សែដៃអ៊ីតាលីកែច្នៃ (${studioCharms.length} គ្រាប់)` : `Custom Italy Bracelet (${studioCharms.length} Charms)`,
-    desc: `Code: ${code} • ${pkgTitle}`,
+    name: isKm ? `ខ្សែដៃអ៊ីតាលីកែច្នៃ (${studioCharms.length} គ្រាប់ - ពណ៌${colorName})` : `Custom Italy Bracelet (${studioCharms.length} Charms - ${colorName})`,
+    desc: `Finish: ${studioSelectedColor.toUpperCase()} • ${studioCharms.length} Links (16–18 Modular Fit)`,
     price: grandUSD,
     priceKHR: grandKHR,
     pt: c.customPt || 5,
     icon: '🔗',
     image: studioCharms[0]?.image || 'logo.jpg',
+    color: studioSelectedColor,
     qty: 1,
     charms: [...studioCharms],
-    code: code,
-    pkg: studioPkg
+    code: code
   };
 
   addToCart(null, customItem);
@@ -2729,156 +2662,123 @@ function addStudioBraceletToCart() {
 
 function customizer() {
   initStudioCharms();
-  const c = cfg();
   const isKm = S.lang === 'km';
   const categories = SRDB.charmCategories();
   const allCharms = SRDB.charms(true);
+  const colorObj = CHARM_DEFAULT_COLORS.find(c => c.id === studioSelectedColor) || CHARM_DEFAULT_COLORS[0];
+  const colorName = isKm ? colorObj.nameKm.split(' ')[0] : colorObj.nameEn;
 
   view(`
-  <div class="customizer-container" style="max-width:980px;margin:0 auto;padding-bottom:80px">
-    <!-- Header Title Bar -->
-    <div class="section-title" style="margin-bottom:16px">
-      <div>
-        <div style="display:inline-flex;align-items:center;gap:8px;margin-bottom:4px">
-          <span style="font-size:1.6rem">🔗</span>
-          <h2 class="kh" style="margin:0;font-size:1.5rem;color:#ea580c">
-            ${isKm ? 'ស្ទូឌីយោរចនាខ្សែដៃអ៊ីតាលី' : 'Custom Italy Charm Studio'}
-          </h2>
-        </div>
-        <p class="muted" style="margin:2px 0 0;font-size:0.85rem">
-          ${isKm ? 'រចនាខ្សែដៃផ្ទាល់ខ្លួនរបស់អ្នក • អូសដើម្បីប្តូរទីតាំង (Drag & Drop) • ចម្លង/លុបគ្រាប់' : 'Modular Stainless Steel Runway • Drag to Reorder • Real Charm Catalog'}
-        </p>
+  <div class="customizer-container studio-clean-layout">
+    <!-- Header (Centered, Minimal Luxury) -->
+    <div class="studio-clean-header">
+      <button class="btn ghost sm" data-nav="home">← ${t('backToHome')}</button>
+      <div class="studio-header-titles">
+        <h2 class="kh studio-main-title">${isKm ? 'ស្ទូឌីយោរចនាខ្សែដៃអ៊ីតាលី' : 'Italy Charm Custom Studio'}</h2>
+        <p class="muted studio-sub-title">${isKm ? 'ជ្រើសរើសពណ៌លំនាំដើម • កម្រិតពី ១៦ ដល់ ១៨ គ្រាប់ • គំរូគ្រាប់ពិត 9mm' : '9mm Modular Stainless Steel • Standard Fit: 16 to 18 Links'}</p>
       </div>
-      <div style="display:flex;gap:8px;align-items:center">
-        <button class="btn ghost sm" data-nav="home">${t('backToHome')}</button>
+      <div style="width:70px"></div>
+    </div>
+
+    <!-- 1. Clean Color Finishes Selector FIRST (Silver, Black, Orange, Red, Gold, Blue) -->
+    <div class="studio-color-bar-top">
+      <div class="studio-color-bar-label">
+        <span>🎨 ${isKm ? 'ជ្រើសរើសពណ៌ខ្សែដៃ' : 'Select Bracelet Color / Finish'}:</span>
+        <b style="color:#ea580c;text-transform:capitalize" id="studioActiveColorLabel">${colorName}</b>
+      </div>
+      <div class="studio-color-swatches-centered">
+        ${CHARM_DEFAULT_COLORS.map(c => `
+          <button type="button" 
+                  class="charm-color-chip ${studioSelectedColor === c.id ? 'active' : ''}" 
+                  data-color="${c.id}" 
+                  style="--chip-border:${c.border}"
+                  onclick="setStudioColor('${c.id}')"
+                  title="${isKm ? c.nameKm : c.nameEn}">
+            <span class="charm-color-dot" style="background:${c.dot}"></span>
+            <span>${c.nameEn}</span>
+          </button>
+        `).join('')}
       </div>
     </div>
 
-    <!-- Size Recommendation & Pricing Strip -->
-    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px;align-items:center">
-      <div class="glass" style="padding:6px 14px;border-radius:99px;font-size:0.78rem;display:inline-flex;align-items:center;gap:6px">
-        <span>💡</span>
-        <span>${isKm ? 'ទំហំកដៃទូទៅ <b>16 ទៅ 18 គ្រាប់</b> (Standard wrist: 16–18 links)' : 'Standard wrist fit: <b>16–18 links</b>'}</span>
-      </div>
-      <div class="glass" style="padding:6px 14px;border-radius:99px;font-size:0.78rem;display:inline-flex;align-items:center;gap:6px;color:#22c55e">
-        <span>💎</span>
-        <span>${isKm ? 'គ្រាប់នីមួយៗ 3,000៛ ($0.75)' : 'Link price: 3,000៛ ($0.75)'}</span>
-      </div>
-      <div class="glass" style="padding:6px 14px;border-radius:99px;font-size:0.78rem;display:inline-flex;align-items:center;gap:6px;color:#3b82f6">
-        <span>⭐</span>
-        <span>+${c.customPt || 5} ${t('pointsPlus')}</span>
-      </div>
-    </div>
-
-    <!-- Main Workspace Runway Panel -->
-    <div class="glass panel" style="padding:18px 20px;border-radius:20px;margin-bottom:20px">
-      <!-- Runway Top Action Toolbar -->
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;flex-wrap:wrap;gap:10px">
-        <div style="display:flex;align-items:center;gap:12px">
-          <div>
-            <span class="muted small">${isKm ? 'ចំនួនគ្រាប់' : 'Links'}</span>
-            <div id="studioHeaderCount" style="font-size:1.15rem;font-weight:800;color:var(--text);line-height:1.2">
-              0 ${isKm ? 'គ្រាប់' : 'Charms'}
-            </div>
+    <!-- 2. Centered Large Bracelet Box (Centered & Spacious) -->
+    <div class="glass panel studio-bracelet-box">
+      <!-- Top info bar: Count / Limit & Reset / Duplicate / Delete -->
+      <div class="studio-box-top-bar">
+        <div class="studio-top-stat-group">
+          <div class="studio-top-stat-item">
+            <span class="studio-stat-label">${isKm ? 'ចំនួនត្បូង' : 'Charms'}</span>
+            <span id="studioHeaderCount" class="studio-stat-num">0</span>
           </div>
-          <div style="width:1px;height:24px;background:var(--border)"></div>
-          <div>
-            <span class="muted small">${isKm ? 'តម្លៃសរុប' : 'Subtotal'}</span>
-            <div id="studioHeaderPrice" style="font-size:1.15rem;font-weight:800;color:#ea580c;line-height:1.2">
-              0៛ ($0.00)
+          <div class="studio-stat-divider"></div>
+          <div class="studio-top-stat-item">
+            <span class="studio-stat-label">${isKm ? 'តម្លៃ' : 'Price'}</span>
+            <span id="studioHeaderPrice" class="studio-stat-price">0៛</span>
+          </div>
+          <div class="studio-stat-divider"></div>
+          <div class="studio-top-stat-item">
+            <span class="studio-stat-label">${isKm ? 'ទំហំខ្សែដៃ' : 'Fit Status'}</span>
+            <div id="studioLimitStatus" class="bracelet-limit-status" style="margin-top:2px">
+              <!-- Rendered dynamically -->
             </div>
           </div>
         </div>
 
-        <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">
-          <button id="studioDuplicateBtn" class="studio-action-btn" style="display:none;color:#3b82f6;border-color:rgba(59,130,246,0.3)" onclick="duplicateStudioSelected()">
-            📋 ${isKm ? 'ចម្លង' : 'Duplicate'}
+        <div class="studio-top-actions-cluster">
+          <button id="studioDeleteBtn" type="button" class="studio-action-pill btn-danger-pill hidden" onclick="deleteStudioSelected()" title="${isKm ? 'លុបគ្រាប់ដែលបានជ្រើសរើស' : 'Delete selected'}">
+            <svg viewBox="0 0 24 24" width="13" height="13" fill="currentColor"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg>
+            <span>${isKm ? 'លុប' : 'Delete'}</span>
           </button>
-          <button id="studioDeleteBtn" class="studio-action-btn danger" style="display:none" onclick="deleteStudioSelected()">
-            🗑️ ${isKm ? 'លុប' : 'Delete'}
+          <button id="studioDuplicateBtn" type="button" class="studio-action-pill btn-blue-pill hidden" onclick="duplicateStudioSelected()" title="${isKm ? 'ចម្លងគ្រាប់ដែលបានជ្រើសរើស' : 'Duplicate selected'}">
+            <svg viewBox="0 0 24 24" width="13" height="13" fill="currentColor"><path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"/></svg>
+            <span>${isKm ? 'ចម្លង' : 'Duplicate'}</span>
           </button>
-          <button class="studio-action-btn" onclick="clearStudioBracelet()">
-            ↺ ${isKm ? 'ជម្រះ' : 'Reset'}
+          <button id="studioResetBtn" type="button" class="studio-action-pill btn-ghost-pill" onclick="clearStudioBracelet()" title="${isKm ? 'ជម្រះការរចនា' : 'Reset design'}">
+            <svg viewBox="0 0 24 24" width="13" height="13" fill="currentColor"><path d="M12 5V1L7 6l5 5V7c3.31 0 6 2.69 6 6s-2.69 6-6 6-6-2.69-6-6H4c0 4.42 3.58 8 8 8s8-3.58 8-8-3.58-8-8-8z"/></svg>
+            <span>${isKm ? 'ជម្រះ' : 'Reset'}</span>
           </button>
-          <div style="display:flex;gap:4px;margin-left:4px">
-            <button class="track-scroll-btn" onclick="scrollStudioRunway(-140)" title="Scroll Left">‹</button>
-            <button class="track-scroll-btn" onclick="scrollStudioRunway(140)" title="Scroll Right">›</button>
-          </div>
         </div>
       </div>
 
-      <!-- Modular Bracelet Runway -->
+      <!-- The Bracelet Track (Centered in box, Glow Selection, Connected Links) -->
       <div class="bracelet-track-wrapper">
         <div class="bracelet-track-rails"></div>
-        <div id="studioTrackRunway" class="bracelet-track-runway" onclick="if(event.target.id==='studioTrackRunway'){studioSelectedUids=[];renderStudioRunway();}">
-          <!-- Links rendered dynamically -->
+        <div id="studioTrackRunway" class="bracelet-track-runway" onclick="handleStudioBackgroundClick(event)" onscroll="handleStudioPreviewScroll(this)">
+          <!-- Centered links rendered dynamically by renderStudioRunway() -->
+        </div>
+
+        <!-- Navigation Scroll Indicator Bar (< BAR >) Matching Reference -->
+        <div id="studioNavIndicatorBar" class="nav-indicator-container">
+          <button type="button" onclick="scrollStudioRunway(-90)" class="nav-arrow" title="Scroll left">‹</button>
+          <div id="studioScrollTrack" class="nav-scroll-track">
+            <div id="studioScrollThumb" class="nav-scroll-thumb"></div>
+          </div>
+          <button type="button" onclick="scrollStudioRunway(90)" class="nav-arrow" title="Scroll right">›</button>
         </div>
       </div>
 
-      <!-- Interactive gesture hint -->
-      <p class="muted small" style="text-align:center;margin:10px 0 0;font-size:0.75rem">
-        🖐️ ${isKm ? 'ចុចជាប់ដើម្បីអូសប្តូរទីតាំង (Hold & Drag) • ចុចម្ដងដើម្បីជ្រើសរើស/ចម្លង' : 'Hold & Drag links horizontally to reorder • Tap link to select / duplicate / delete'}
-      </p>
-
-      <!-- Design Code Bar -->
-      <div class="studio-code-bar">
-        <div class="studio-code-box">
-          <input type="text" id="studioShareCodeInput" class="studio-code-input" readonly placeholder="DESIGN-CODE">
-          <button type="button" class="btn ghost sm" onclick="copyStudioDesignCode()" title="Copy code">
-            📋 ${isKm ? 'ចម្លង' : 'Copy'}
-          </button>
-        </div>
-        <div class="studio-code-box">
-          <input type="text" id="studioLoadCodeInput" class="studio-code-input" placeholder="${isKm ? 'ដាក់លេខកូដដើម្បីរចនាបន្ត...' : 'Paste design code to load...'}" onkeydown="if(event.key==='Enter')loadStudioDesignCode()">
-          <button type="button" class="btn primary sm" onclick="loadStudioDesignCode()">
-            📥 ${isKm ? 'ដាក់កូដ' : 'Load'}
-          </button>
-        </div>
-      </div>
-
-      <!-- Packaging Options Selector -->
-      <div style="margin-top:20px;border-top:1px solid var(--border);padding-top:16px">
-        <span class="muted small" style="font-weight:700;display:block;margin-bottom:8px">
-          📦 ${isKm ? 'ជ្រើសរើសការវេចខ្ចប់ (Select Packaging)' : 'Packaging Options'}
-        </span>
-        <div class="packaging-cards-row">
-          <div class="pkg-option-card ${studioPkg === 'normal' ? 'active' : ''}" data-pkg="normal" onclick="setStudioPkg('normal')">
-            <div style="display:flex;align-items:center;gap:10px">
-              <span style="font-size:1.6rem">🛍️</span>
-              <div>
-                <b style="font-size:0.85rem">${isKm ? 'ថង់ធម្មតា (Normal Bag)' : 'Standard Pouch'}</b>
-                <p class="muted small" style="margin:2px 0 0">${isKm ? 'វេចខ្ចប់ស្តង់ដារ' : 'Eco pouch packaging'}</p>
-              </div>
-            </div>
-            <span style="color:#22c55e;font-weight:800;font-size:0.85rem">${isKm ? 'ឥតគិតថ្លៃ' : 'FREE'}</span>
-          </div>
-
-          <div class="pkg-option-card ${studioPkg === 'premium' ? 'active' : ''}" data-pkg="premium" onclick="setStudioPkg('premium')">
-            <div style="display:flex;align-items:center;gap:10px">
-              <span style="font-size:1.6rem">🎁</span>
-              <div>
-                <b style="font-size:0.85rem">${isKm ? 'ប្រអប់ Premium (Gift Box)' : 'Luxury Gift Box'}</b>
-                <p class="muted small" style="margin:2px 0 0">${isKm ? 'សម្រាប់កាដូពិសេស' : 'Premium gift presentation'}</p>
-              </div>
-            </div>
-            <span style="color:#ea580c;font-weight:800;font-size:0.85rem">+5,000៛ (${money(c.packagingFee || 1.25)})</span>
-          </div>
-        </div>
+      <!-- Helper hint under runway -->
+      <div class="studio-runway-hint">
+        <span>${isKm ? 'ចុចលើគ្រាប់ដើម្បីជ្រើសរើស (Glow) • អូសគ្រាប់ដើម្បីប្តូរទីតាំង • ចុចខាងក្រៅដើម្បីដោះការជ្រើសរើស' : 'Tap link to select (Glow) • Drag to reorder • Click outside runway to deselect'}</span>
       </div>
     </div>
 
-    <!-- Charms Catalog Section -->
-    <div class="glass panel charm-catalog-section" style="padding:18px 20px;border-radius:20px">
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;flex-wrap:wrap;gap:10px">
-        <h3 style="margin:0;font-size:1.15rem;display:flex;align-items:center;gap:8px">
-          <span>💎</span>
-          <span>${isKm ? 'កាតាឡុកគ្រាប់ត្បូងអ៊ីតាលី' : 'Italy Charms Catalog'}</span>
-        </h3>
-        <div style="position:relative;max-width:240px;width:100%">
-          <input type="text" id="studioSearchInput" placeholder="${isKm ? '🔍 ស្វែងរកត្បូង...' : '🔍 Search charms...'}" 
+    <!-- 3. Clean Charms Catalog Selection (Centered & Big) -->
+    <div class="glass panel studio-catalog-box">
+      <div class="studio-catalog-header">
+        <div style="display:flex;align-items:center;gap:10px">
+          <h3 style="margin:0;font-size:1.2rem;display:flex;align-items:center;gap:8px">
+            <span>💎</span>
+            <span>${isKm ? 'ជ្រើសរើសគ្រាប់ត្បូង' : 'Select Charms'}</span>
+          </h3>
+          <span class="badge ok" style="font-size:0.75rem">${allCharms.length} ${isKm ? 'ម៉ូតក្នុងហាង' : 'Models'}</span>
+        </div>
+        <div style="position:relative;max-width:280px;width:100%">
+          <input type="text" id="studioSearchInput" 
+                 placeholder="${isKm ? '🔍 ស្វែងរកម៉ូតលេខ (#MD-001)...' : '🔍 Search Model (#MD-001)...'}" 
                  value="${esc(studioSearchQuery)}"
                  oninput="onStudioSearchInput(this.value)"
-                 style="padding:6px 12px;font-size:0.82rem;border-radius:99px;width:100%">
+                 style="padding:8px 16px;font-size:0.85rem;border-radius:99px;width:100%">
         </div>
       </div>
 
@@ -2895,47 +2795,58 @@ function customizer() {
       </div>
 
       <!-- Charms Grid View -->
-      <div id="studioCharmsGrid" class="charm-cards-grid">
+      <div id="studioCharmsGrid" class="charm-cards-grid studio-clean-grid">
         <!-- Rendered dynamically -->
       </div>
     </div>
 
-    <!-- Sticky Bottom Summary Bar -->
-    <div class="studio-summary-bar">
+    <!-- 4. Sticky Bottom Summary Bar -->
+    <div class="studio-clean-summary">
       <div style="display:flex;align-items:center;gap:14px">
         <div>
           <span class="muted small">${isKm ? 'សរុបខ្សែដៃ' : 'Bracelet Total'}</span>
           <div style="display:flex;align-items:baseline;gap:8px">
             <span id="studioSummaryPrice" style="font-size:1.35rem;font-weight:800;color:#ea580c">0៛ ($0.00)</span>
-            <span id="studioSummaryCount" class="badge ok" style="font-size:0.75rem">0 ${isKm ? 'គ្រាប់' : 'Links'}</span>
+            <span id="studioSummaryCount" class="badge" style="font-size:0.75rem">0 / 18 Links</span>
           </div>
         </div>
       </div>
 
-      <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
-        <button type="button" class="btn ghost" onclick="addRandomStudioCharm()" title="${isKm ? 'បន្ថែមគ្រាប់ចៃដន្យ' : 'Add random charm'}">
-          🎲 ${isKm ? 'ចៃដន្យ' : 'Random'}
-        </button>
-        <button id="studioAddToCartBtn" type="button" class="btn primary" style="padding:12px 24px;font-size:0.95rem;box-shadow:0 8px 20px rgba(234,88,12,0.35)" onclick="addStudioBraceletToCart()">
-          🛒 ${isKm ? 'ដាក់ចូលកន្ត្រកទំនិញ' : 'Add Bracelet to Cart'}
-        </button>
-      </div>
-    </div>
-  </div>
-
-  <!-- Charm Photo Zoom Modal -->
-  <div id="studioCharmZoomModal" class="studio-charm-zoom-modal" style="display:none" onclick="if(event.target===this)closeStudioCharmZoom()">
-    <div class="studio-charm-zoom-card">
-      <button type="button" onclick="closeStudioCharmZoom()" style="position:absolute;top:12px;right:12px;width:30px;height:30px;border-radius:50%;background:rgba(255,255,255,0.08);border:1px solid var(--border);color:var(--text);cursor:pointer;font-size:12px;display:flex;align-items:center;justify-content:center">✕</button>
-      <div style="width:160px;height:200px;margin:0 auto 16px;background:#fff;border-radius:12px;padding:8px;display:flex;align-items:center;justify-content:center;box-shadow:inset 0 2px 6px rgba(0,0,0,0.1)">
-        <img id="studioZoomImg" src="logo.jpg" alt="Charm" style="max-width:100%;max-height:100%;object-fit:contain;mix-blend-multiply">
-      </div>
-      <h3 id="studioZoomName" style="margin:0 0 4px;font-size:1.1rem;color:var(--text)">Charm Name</h3>
-      <p id="studioZoomCat" class="muted small" style="margin:0 0 10px">Category: Plain</p>
-      <div id="studioZoomPrice" style="font-size:1.2rem;font-weight:800;color:#ea580c;margin-bottom:16px">3,000៛ ($0.75)</div>
-      <button id="studioZoomAddBtn" type="button" class="btn primary" style="width:100%">
-        ＋ ${isKm ? 'បន្ថែមចូលខ្សែដៃ (Add to Bracelet)' : 'Add to Bracelet Runway'}
+      <button id="studioAddToCartBtn" type="button" class="btn primary studio-submit-btn" onclick="addStudioBraceletToCart()">
+        🛒 ${isKm ? 'ដាក់ចូលកន្ត្រក' : 'Add Bracelet to Cart'}
       </button>
+    </div>
+
+    <!-- Charm Photo Zoom & 3D Model Inspection Modal -->
+    <div id="studioCharmZoomModal" class="studio-charm-zoom-modal" style="display:none" onclick="if(event.target===this)closeStudioCharmZoom()">
+      <div class="studio-charm-zoom-card">
+        <button type="button" onclick="closeStudioCharmZoom()" style="position:absolute;top:12px;right:12px;width:30px;height:30px;border-radius:50%;background:rgba(255,255,255,0.08);border:1px solid var(--border);color:var(--text);cursor:pointer;font-size:12px;display:flex;align-items:center;justify-content:center">✕</button>
+        
+        <div id="studioZoomModelBox" style="display:flex;align-items:center;justify-content:center;margin:0 auto 16px;min-height:190px">
+          <!-- Rendered dynamically -->
+        </div>
+
+        <div style="display:flex;justify-content:center;align-items:center;gap:6px;margin-bottom:12px">
+          <span class="muted small" style="font-size:0.75rem">Finishes:</span>
+          <div id="studioZoomColorPills" style="display:flex;gap:6px;align-items:center">
+            <!-- Rendered dynamically -->
+          </div>
+        </div>
+
+        <div style="display:flex;align-items:center;gap:6px;justify-content:center;margin-bottom:4px">
+          <span id="studioZoomModelNo" class="charm-model-tag" style="font-size:0.75rem">Model: #MD-001</span>
+          <span id="studioZoomCat" class="badge" style="font-size:0.7rem">Category: Plain</span>
+        </div>
+
+        <h3 id="studioZoomName" style="margin:4px 0 2px;font-size:1.15rem;color:var(--text)">Charm Name</h3>
+        <p class="muted small" style="margin:0 0 10px;font-size:0.75rem">9mm Modular Link · Hypoallergenic 316L Stainless Steel</p>
+        
+        <div id="studioZoomPrice" style="font-size:1.25rem;font-weight:800;color:#ea580c;margin-bottom:16px">3,000៛ ($0.75)</div>
+        
+        <button id="studioZoomAddBtn" type="button" class="btn primary" style="width:100%">
+          ＋ ${isKm ? 'បន្ថែមចូលខ្សែដៃ' : 'Add to Bracelet Runway'}
+        </button>
+      </div>
     </div>
   </div>`);
 
@@ -3034,9 +2945,6 @@ function profile() {
 
       <!-- Secondary Utility Actions -->
       <div class="account-secondary-actions">
-        <a href="admin.html" class="btn ghost sm" style="color:#10b981;border-color:rgba(16,185,129,0.4);display:inline-flex;align-items:center;gap:6px;font-weight:600" title="Open Admin Panel">
-          👑 <span>${t('adminPortal')}</span>
-        </a>
         <button class="btn ghost sm" onclick="clearMyLoginData()">${t('clearLoginDataText')}</button>
         <button class="btn ghost sm" onclick="logout()">${t('logoutBtn')}</button>
       </div>
@@ -3068,10 +2976,6 @@ if (centerLogoBtnEl) {
   });
 }
 
-if (me() || isAdmin()) {
-  if (isAdmin() && !S.userId) {
-    S.userId = 'Uadmin';
-    save();
-  }
+if (me()) {
   enterApp();
 }

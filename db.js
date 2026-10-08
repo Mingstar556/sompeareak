@@ -4,7 +4,7 @@
    Provides instant synchronous access with background async sync.
    ================================================================ */
 const SRDB = (() => {
-  const STORAGE_KEY = 'srdb_cache_v4';
+  const STORAGE_KEY = 'srdb_cache_v5';
   const DEFAULT = {
     settings: {
       site_title: 'សម្ភារៈ - Somphea Reak',
@@ -23,11 +23,11 @@ const SRDB = (() => {
       voucherPct: 10,
       custom_base_price: 8.0,
       customBasePrice: 8.0,
-      charm_price: 1.5,
-      charmPrice: 1.5,
+      charm_price: 0.75,
+      charmPrice: 0.75,
       custom_pt: 5,
       customPt: 5,
-      charms: ['❤️','⭐','🌸','🦋','🐱','🍀','🌙','☀️','💎','🎀','🐶','🌈','⚽','🎵','🇰🇭','🔤','⚡','👑'],
+      charms: ['ch_plain_001'],
       announcement: '✨ Welcome to Somphea Reak Studio • Verified Telegram Orders • Earn Points on Every Item!',
       seller_telegram: 'sompheareak',
       sellerTelegram: 'sompheareak',
@@ -39,7 +39,21 @@ const SRDB = (() => {
       { id: 'bracelet', name: 'Ready-Made Bracelet', kh: 'Bracelet for Female&Male', en: 'Ready-made bracelets', icon: '📿', grad: 'linear-gradient(135deg,#22c55e,#14b8a6)', sort_order: 3 },
     ],
     products: [],
-    charms: [],
+    charms: [
+      {
+        id: 'ch_plain_001',
+        name: 'Classic Plain Stainless Link',
+        category: 'Plain',
+        price: 0.75,
+        price_khr: 3000,
+        stock: 999,
+        image: 'charm_clean.png',
+        active: 1,
+        sort_order: 0,
+        model_no: 'MD-001',
+        color: 'Silver'
+      }
+    ],
     orders: [],
     users: [],
     notifications: [],
@@ -113,10 +127,9 @@ const SRDB = (() => {
   const API_BASE = window.location.origin.includes('http') ? '' : 'http://127.0.0.1:5000';
   async function api(path, opts = {}) {
     try {
-      const pin = sessionStorage.getItem('sr_admin_pin') || (sessionStorage.getItem('sr_admin') === '1' ? (data?.settings?.admin_pin || '1234') : '');
       const headers = {
         'Content-Type': 'application/json',
-        ...(pin ? { 'X-Admin-PIN': pin } : {}),
+        'X-Client-Role': 'customer',
         ...(opts.headers || {})
       };
       const res = await fetch(`${API_BASE}${path}`, {
@@ -298,8 +311,23 @@ const SRDB = (() => {
     },
 
     /* --- Charms (Italy Charm Bracelet Links & Customizer Studio) --- */
-    charms: (all = false) => (data.charms || []).filter(c => all || c.active),
-    charm: id => (data.charms || []).find(c => c.id === id),
+    charms: (all = false) => {
+      const list = (data.charms || []).filter(c => all || c.active);
+      return list.map((c, idx) => ({
+        ...c,
+        model_no: c.model_no || `MD-${(idx + 1).toString().padStart(3, '0')}`,
+        color: c.color || 'Silver'
+      }));
+    },
+    charm: id => {
+      const c = (data.charms || []).find(ch => ch.id === id);
+      if (!c) return null;
+      return {
+        ...c,
+        model_no: c.model_no || 'MD-001',
+        color: c.color || 'Silver'
+      };
+    },
     charmCategories() {
       const all = this.charms(true);
       const map = {};
@@ -314,13 +342,15 @@ const SRDB = (() => {
       if (!Array.isArray(data.charms)) data.charms = [];
       const chData = {
         ...ch,
+        model_no: ch.model_no || `MD-${(data.charms.length + 1).toString().padStart(3, '0')}`,
+        color: ch.color || 'Silver',
         price: parseFloat(ch.price) || 0.75,
         price_khr: parseInt(ch.price_khr) || Math.round((parseFloat(ch.price) || 0.75) * 4000),
         stock: Math.max(0, parseInt(ch.stock) || 0),
         active: ch.active !== undefined ? (ch.active ? 1 : 0) : 1
       };
       if (ch.id) {
-        const ex = this.charm(ch.id);
+        const ex = (data.charms || []).find(c => c.id === ch.id);
         if (ex) Object.assign(ex, chData);
         else data.charms.unshift(chData);
       } else {

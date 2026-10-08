@@ -22,19 +22,12 @@
 - **Live Order Status Tracking**: Real-time sound chimes and visual toast notifications when admin confirms, ships, or disapproves an order.
 - **Printable Official Receipts**: Formatted thermal/official invoices with itemized pricing, delivery fees, voucher discounts, and order references.
 
-### 👑 Real-Time Admin Desk (`admin.html`)
-- **Order Notification Center**:
-  - Live topbar bell badge displaying pending order counts.
-  - Flashing browser tab title alert (`🔔 (X) New Orders! • Somphea Reak Admin`).
-  - Glowing dashboard warning banner with 1-click filter button (`Review & Confirm Orders`).
-  - Audible chime alert upon receiving new orders in real time.
-- **Intelligent Order Disapproval Flow**:
-  - Interactive rejection modal with quick preset reason chips (*Item out of stock*, *Incomplete address*, *Payment unverified*, *Duplicate order*).
-  - Custom explanation textarea sent directly to the customer's order history and receipt.
-  - **Automatic Voucher Refund**: Disapproved orders immediately return applied vouchers to the customer's account in SQLite.
-- **On-Site Storefront Editing**: Direct live editing of categories, product prices, discounts, and stock levels from the customer-facing interface when in Admin Mode.
-- **Catalog & Inventory Management**: Live stock increment/decrement, visual product uploaders with presets, drag-and-drop image dropzones, and brand logo management.
-- **Customer Rewards Desk**: Inspect customer point balances, grant test credits, and track customer transaction logs.
+### 👑 Dedicated Store Owner Admin Management (`sompheareakAdmin`)
+The Admin Management Desk is completely decoupled into its own repository:
+- **Repository**: [`sompheareakAdmin`](https://github.com/Mingstar556/sompheareakAdmin)
+- **Zero Customer Leakage**: Customer storefront is 100% clean and isolated from administrative controls.
+- **Unified Backend & Live Sync**: Both customer and admin frontends sync seamlessly via the central Python API (`server.py`) and single SQLite database (`sompheareak.db`).
+- **Middleware Pattern**: Enforces role classification, authentication guards, and CORS support.
 
 ---
 
