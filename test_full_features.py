@@ -92,27 +92,38 @@ def test_full_features():
 
     # --- 7. Remember Me Frontend Assets Verification ---
     print("\n[Feature 7] Remember Me HTML & CSS Verification...")
-    with open('index.html', 'r', encoding='utf-8') as f:
+    base_dir = os.path.dirname(os.path.abspath(__file__))
+    cust_html_path = os.path.join(base_dir, 'index.html')
+    with open(cust_html_path, 'r', encoding='utf-8') as f:
         cust_html = f.read()
     assert 'id="rememberMeCheckbox"' in cust_html
     assert 'checkbox-custom' in cust_html
     assert '<svg' in cust_html and 'polyline' in cust_html, "Customer missing checkmark SVG!"
 
-    with open('styles.css', 'r', encoding='utf-8') as f:
+    cust_css_path = os.path.join(base_dir, 'styles.css')
+    with open(cust_css_path, 'r', encoding='utf-8') as f:
         cust_css = f.read()
     assert '.remember-label input[type="checkbox"]:checked + .checkbox-custom' in cust_css
     assert '#10b981' in cust_css, "Green check styling missing in customer CSS!"
 
-    admin_html_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'sompheareakAdmin', 'index.html')
-    if os.path.exists(admin_html_path):
+    admin_html_candidates = [
+        os.path.join(base_dir, '..', 'sompheareakAdmin', 'index.html'),
+        os.path.join(base_dir, '..', 'sompheareakAdmin-main', 'index.html')
+    ]
+    admin_html_path = next((p for p in admin_html_candidates if os.path.exists(p)), None)
+    if admin_html_path:
         with open(admin_html_path, 'r', encoding='utf-8') as f:
             admin_html = f.read()
         assert 'id="adminRememberCheckbox"' in admin_html
         assert 'checkbox-custom' in admin_html
         assert '<svg' in admin_html and 'polyline' in admin_html, "Admin missing checkmark SVG!"
 
-    admin_css_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'sompheareakAdmin', 'styles.css')
-    if os.path.exists(admin_css_path):
+    admin_css_candidates = [
+        os.path.join(base_dir, '..', 'sompheareakAdmin', 'styles.css'),
+        os.path.join(base_dir, '..', 'sompheareakAdmin-main', 'styles.css')
+    ]
+    admin_css_path = next((p for p in admin_css_candidates if os.path.exists(p)), None)
+    if admin_css_path:
         with open(admin_css_path, 'r', encoding='utf-8') as f:
             admin_css = f.read()
         assert '.remember-label input[type="checkbox"]:checked + .checkbox-custom' in admin_css

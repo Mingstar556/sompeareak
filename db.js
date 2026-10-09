@@ -115,6 +115,22 @@ const SRDB = (() => {
     });
   }
 
+  function normalizeOrder(o) {
+    if (!o) return o;
+    const cloned = { ...o };
+    if (typeof cloned.contact === 'string') {
+      try { cloned.contact = JSON.parse(cloned.contact); } catch (e) { cloned.contact = { address: cloned.contact }; }
+    }
+    if (!cloned.contact) cloned.contact = {};
+    if (!cloned.payment) {
+      cloned.payment = cloned.contact.payment || 'ABA KHQR (Scan to Pay)';
+    }
+    if (!cloned.payment_type) {
+      cloned.payment_type = cloned.contact.payment_type || (String(cloned.payment).includes('COD') ? 'COD' : 'KHQR');
+    }
+    return cloned;
+  }
+
   // Cross-tab broadcast listener
   if (liveChannel) {
     liveChannel.onmessage = e => {
@@ -147,19 +163,30 @@ const SRDB = (() => {
 
   async function api(path, opts = {}) {
     try {
+      const token = sessionStorage.getItem('sr_admin_token') || localStorage.getItem('sr_admin_token');
       const headers = {
         'Content-Type': 'application/json',
+        ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
         ...(opts.headers || {})
       };
+      const signal = opts.signal || (typeof AbortSignal !== 'undefined' && AbortSignal.timeout ? AbortSignal.timeout(6000) : undefined);
       const res = await fetch(`${API_BASE}${path}`, {
         ...opts,
         headers,
+        signal,
       });
+      const ctype = res.headers.get('content-type') || '';
       if (!res.ok) {
-        const err = await res.json().catch(() => ({ error: res.statusText }));
-        throw new Error(err.error || `HTTP ${res.status}`);
+        let errBody = {};
+        if (ctype.includes('application/json')) {
+          errBody = await res.json().catch(() => ({}));
+        }
+        throw new Error(errBody.error || res.statusText || `HTTP ${res.status}`);
       }
-      return await res.json();
+      if (ctype.includes('application/json')) {
+        return await res.json();
+      }
+      return null;
     } catch (e) {
       return null;
     }
@@ -362,6 +389,9 @@ const SRDB = (() => {
       if (res) syncFromPython();
       return cat;
     },
+    saveCategory(cat) {
+      return this.upsertCategory(cat);
+    },
     async deleteCategory(id) {
       data.categories = (data.categories || DEFAULT.categories).filter(c => c.id !== id);
       writeCache();
@@ -385,7 +415,7 @@ const SRDB = (() => {
     /* --- Products --- */
     products: (all = false) => data.products.filter(p => all || p.active),
     product: id => data.products.find(p => p.id === id),
-    finalPrice: p => +(p.price * (1 - (p.discount || 0) / 100)).toFixed(2),
+    finalPrice: p => (!p || p.price == null) ? 0 : +(p.price * (1 - (p.discount || 0) / 100)).toFixed(2),
 
     async upsertProduct(p) {
       // Optimistic local update
@@ -415,6 +445,9 @@ const SRDB = (() => {
         return saved;
       }
       return p;
+    },
+    saveProduct(p) {
+      return this.upsertProduct(p);
     },
 
     async adjustStock(id, delta) {
@@ -455,7 +488,7 @@ const SRDB = (() => {
 
     /* --- Charms (Italy Charm Bracelet Links & Customizer Studio) --- */
     charms: (all = false) => {
-      const list = (data.charms || []).filter(c => all || c.active);
+      const list = (data.charms || []).filter(c => all || (c.active !== 0 && c.active !== false));
       return list.map((c, idx) => ({
         ...c,
         model_no: c.model_no || `MD-${(idx + 1).toString().padStart(3, '0')}`,
@@ -512,6 +545,9 @@ const SRDB = (() => {
         return saved;
       }
       return chData;
+    },
+    saveCharm(ch) {
+      return this.upsertCharm(ch);
     },
     async adjustCharmStock(id, delta, newStock) {
       const ch = this.charm(id);
@@ -648,11 +684,22 @@ const SRDB = (() => {
     },
 
     /* --- Orders --- */
-    orders: () => data.orders,
-    ordersOf: userId => data.orders.filter(o => o.user_id === userId || o.userId === userId),
-    order: id => data.orders.find(o => o.id === id),
+    orders: () => (data.orders || []).map(normalizeOrder),
+    ordersOf: userId => (data.orders || []).filter(o => o.user_id === userId || o.userId === userId).map(normalizeOrder),
+    order: id => {
+      const o = (data.orders || []).find(x => x.id === id);
+      return o ? normalizeOrder(o) : null;
+    },
 
     async placeOrder(orderData) {
+      const payment = orderData.payment || orderData.contact?.payment || 'ABA KHQR (Scan to Pay)';
+      const payment_type = orderData.payment_type || orderData.contact?.payment_type || (payment.includes('COD') ? 'COD' : 'KHQR');
+      let contactObj = orderData.contact;
+      if (typeof contactObj === 'string') {
+        try { contactObj = JSON.parse(contactObj); } catch (e) { contactObj = { address: contactObj }; }
+      }
+      contactObj = { ...(contactObj || {}), payment, payment_type };
+
       const payload = {
         user_id: orderData.userId || orderData.user_id,
         items: orderData.items,
@@ -662,7 +709,9 @@ const SRDB = (() => {
         total: orderData.total,
         earned: orderData.earned,
         voucher: orderData.voucher,
-        contact: orderData.contact,
+        payment,
+        payment_type,
+        contact: contactObj,
       };
 
       const tempId = 'SR' + Date.now().toString().slice(-6);
@@ -687,7 +736,7 @@ const SRDB = (() => {
         body: JSON.stringify(payload)
       });
       if (saved) {
-        Object.assign(localOrder, saved);
+        Object.assign(localOrder, normalizeOrder(saved));
         if (payload.voucher) {
           const u = this.user(payload.user_id);
           const v = u?.vouchers?.find(x => x.code === payload.voucher);
@@ -695,7 +744,7 @@ const SRDB = (() => {
         }
         writeCache();
         syncFromPython();
-        return saved;
+        return normalizeOrder(saved);
       }
       return localOrder;
     },
@@ -768,5 +817,16 @@ const SRDB = (() => {
       writeCache();
       await api('/api/notifications/read', { method: 'POST' });
     },
+
+    async invalidateCache() {
+      return syncFromPython(true);
+    },
+    async refresh() {
+      return syncFromPython(true);
+    },
   };
 })();
+
+if (typeof window !== 'undefined') window.SRDB = SRDB;
+if (typeof globalThis !== 'undefined') globalThis.SRDB = SRDB;
+

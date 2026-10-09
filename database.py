@@ -78,15 +78,15 @@ DEFAULT_CATEGORIES = [
 ]
 
 def get_db():
-    conn = sqlite3.connect(DB_PATH, timeout=20.0)
+    conn = sqlite3.connect(DB_PATH, timeout=10.0)
     conn.row_factory = sqlite3.Row
-    conn.execute("PRAGMA journal_mode = WAL")
     conn.execute("PRAGMA synchronous = NORMAL")
-    conn.execute("PRAGMA busy_timeout = 20000")
+    conn.execute("PRAGMA busy_timeout = 5000")
     return conn
 
 def init_db():
     conn = get_db()
+    conn.execute("PRAGMA journal_mode = WAL")
     c = conn.cursor()
 
     # Sync versions table for high-performance delta polling
@@ -313,22 +313,29 @@ def get_sync_status():
     }
 
 # --- Admin Authentication & Hash Management ---
+_CACHED_ADMIN_HASH = None
+
 def verify_admin_pin(pin: str) -> bool:
     """Validate candidate PIN/password against salted cryptographic hash in database."""
+    global _CACHED_ADMIN_HASH
     if not pin:
         return False
-    conn = get_db()
-    c = conn.cursor()
-    c.execute('SELECT password_hash FROM admin_auth WHERE id = 1')
-    row = c.fetchone()
-    conn.close()
-    if not row or not row['password_hash']:
-        target_pin = os.environ.get('ADMIN_PIN', 'Sompheareak.com04/10/2026-Ming')
+    target_pin = os.environ.get('ADMIN_PIN', 'Sompheareak.com04/10/2026-Ming')
+    if _CACHED_ADMIN_HASH is None:
+        conn = get_db()
+        c = conn.cursor()
+        c.execute('SELECT password_hash FROM admin_auth WHERE id = 1')
+        row = c.fetchone()
+        conn.close()
+        if row and row['password_hash']:
+            _CACHED_ADMIN_HASH = row['password_hash']
+    if not _CACHED_ADMIN_HASH:
         return str(pin).strip() == target_pin
-    return check_password_hash(row['password_hash'], str(pin).strip())
+    return check_password_hash(_CACHED_ADMIN_HASH, str(pin).strip())
 
 def set_admin_pin(new_pin: str) -> bool:
     """Store admin PIN as salted cryptographic hash."""
+    global _CACHED_ADMIN_HASH
     pin_clean = str(new_pin).strip()
     if not pin_clean or len(pin_clean) < 4:
         return False
@@ -343,6 +350,7 @@ def set_admin_pin(new_pin: str) -> bool:
     c.execute("DELETE FROM settings WHERE key IN ('admin_pin', 'adminPin')")
     conn.commit()
     conn.close()
+    _CACHED_ADMIN_HASH = p_hash
     return True
 
 # --- Settings ---
@@ -717,8 +725,17 @@ def upsert_user(username, phone):
 
     bump_version('users', conn)
     conn.commit()
+
+    c.execute('SELECT * FROM users WHERE id = ?', (u_id,))
+    res_row = c.fetchone()
     conn.close()
-    return get_user(u_id)
+
+    if not res_row:
+        return None
+    u = dict(res_row)
+    u['vouchers'] = json.loads(u.get('vouchers') or '[]')
+    u['point_log'] = json.loads(u.get('point_log') or '[]')
+    return u
 
 def update_user(user_id, data):
     conn = get_db()
@@ -785,7 +802,16 @@ def get_orders(user_id=None):
     conn.close()
     for o in rows:
         o['items'] = json.loads(o.get('items') or '[]')
-        o['contact'] = json.loads(o.get('contact') or '{}')
+        contact_raw = o.get('contact') or '{}'
+        if isinstance(contact_raw, str):
+            try:
+                o['contact'] = json.loads(contact_raw)
+            except Exception:
+                o['contact'] = {'address': contact_raw}
+        else:
+            o['contact'] = contact_raw or {}
+        o['payment'] = o['contact'].get('payment') or 'ABA KHQR (Scan to Pay)'
+        o['payment_type'] = o['contact'].get('payment_type') or ('COD' if 'COD' in str(o['payment']).upper() else 'KHQR')
     return rows
 
 def get_order(order_id):
@@ -797,7 +823,16 @@ def get_order(order_id):
     if not row: return None
     o = dict(row)
     o['items'] = json.loads(o.get('items') or '[]')
-    o['contact'] = json.loads(o.get('contact') or '{}')
+    contact_raw = o.get('contact') or '{}'
+    if isinstance(contact_raw, str):
+        try:
+            o['contact'] = json.loads(contact_raw)
+        except Exception:
+            o['contact'] = {'address': contact_raw}
+    else:
+        o['contact'] = contact_raw or {}
+    o['payment'] = o['contact'].get('payment') or 'ABA KHQR (Scan to Pay)'
+    o['payment_type'] = o['contact'].get('payment_type') or ('COD' if 'COD' in str(o['payment']).upper() else 'KHQR')
     return o
 
 def place_order(order_data):
@@ -813,7 +848,20 @@ def place_order(order_data):
     earned = int(order_data.get('earned', 0))
     voucher = order_data.get('voucher')
     status = 'Pending'
-    contact = json.dumps(order_data.get('contact', {}))
+    
+    contact_data = order_data.get('contact', {})
+    if isinstance(contact_data, str):
+        try:
+            contact_data = json.loads(contact_data)
+        except Exception:
+            contact_data = {'address': contact_data}
+    elif not isinstance(contact_data, dict):
+        contact_data = {}
+
+    payment = order_data.get('payment') or contact_data.get('payment') or 'ABA KHQR (Scan to Pay)'
+    contact_data['payment'] = payment
+    contact_data['payment_type'] = 'COD' if 'COD' in str(payment).upper() else 'KHQR'
+    contact = json.dumps(contact_data)
     created_at = now()
 
     c.execute('''

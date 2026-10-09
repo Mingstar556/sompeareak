@@ -223,7 +223,8 @@
 
   <div id="toast" class="toast"></div>
   <div id="modal" class="modal hidden">
-    <div class="glass modal-card" id="modalCard">
+    <div class="glass modal-card" id="modalCard" style="position:relative">
+      <button onclick="closeModal()" type="button" class="btn ghost sm modal-corner-close" style="position:absolute;top:14px;right:14px;padding:4px 8px;border-radius:50%;z-index:10" title="Close">✖</button>
       <div id="modalBody"></div>
     </div>
   </div>

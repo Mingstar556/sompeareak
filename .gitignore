@@ -3,10 +3,10 @@
 # ================================================================
 
 # --- Environment & Sensitive Credentials ---
+.env
 .env.local
 .env.*.local
 *.env
-!.env
 !.env.example
 secrets.json
 *.pem

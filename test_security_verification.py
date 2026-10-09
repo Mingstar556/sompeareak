@@ -153,5 +153,9 @@ def run_tests():
     print("ALL VERIFICATION CHECKS PASSED PERFECTLY!")
     print("=======================================================")
 
+def test_security_verification():
+    run_tests()
+
 if __name__ == '__main__':
     run_tests()
+

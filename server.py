@@ -331,6 +331,12 @@ def response_pipeline_middleware(response):
         response.headers['Referrer-Policy'] = 'strict-origin-when-cross-origin'
         response.headers['Permissions-Policy'] = 'camera=(), microphone=(), geolocation=()'
 
+    # Ensure live static frontend assets (JS/CSS/HTML) are never cached stale
+    if not request.path.startswith('/api/'):
+        response.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate'
+        response.headers['Pragma'] = 'no-cache'
+        response.headers['Expires'] = '0'
+
     client_type = getattr(g, 'client_type', 'static')
     req_id = getattr(g, 'request_id', 'unknown')
     duration_ms = int((time.time() - getattr(g, 'start_time', time.time())) * 1000)
@@ -378,6 +384,15 @@ def admin_page_redirect():
 # ================================================================
 # API: High-Performance Live Sync & Version Status (<1ms response)
 # ================================================================
+
+@app.route('/api/health', methods=['GET'])
+def health_check():
+    return jsonify({
+        'ok': True,
+        'status': 'healthy',
+        'service': 'Somphea Reak API',
+        'time': int(time.time())
+    })
 
 @app.route('/api/sync/status', methods=['GET'])
 def get_sync_status():
@@ -644,6 +659,7 @@ def universal_checkout():
     total = float(data.get('total', 0))
     promo = data.get('redeemCode', '')
     tg_user = data.get('telegram_user') or {}
+    payment = data.get('payment') or (data.get('contact') or {}).get('payment') or 'ABA KHQR (Scan to Pay)'
 
     username = tg_user.get('username') or name or 'customer'
     user = database.upsert_user(username, phone)
@@ -657,10 +673,62 @@ def universal_checkout():
         'total': total,
         'earned': 5,
         'voucher': promo,
-        'contact': {'name': name, 'phone': phone, 'address': address, 'telegram': username}
+        'payment': payment,
+        'contact': {'name': name, 'phone': phone, 'address': address, 'telegram': username, 'payment': payment}
     }
     order = database.place_order(order_data)
     return jsonify({'ok': True, 'order_id': order['id'], 'order': order})
+
+
+# ================================================================
+# API: Telegram MTProto Username Resolution
+# ================================================================
+
+try:
+    from telegram_resolver import resolver as tg_resolver
+except ImportError:
+    tg_resolver = None
+
+@app.route('/api/telegram/check', methods=['GET', 'POST'])
+@app.route('/api/telegram/resolve', methods=['GET', 'POST'])
+def check_telegram_username():
+    """
+    Checks if a Telegram username actually exists via MTProto contacts.resolveUsername.
+    Accepts:
+      - GET /api/telegram/check?username=@john_doe
+      - POST /api/telegram/check with JSON {"username": "@john_doe"}
+    Returns:
+      { "exists": true, "type": "user" } or { "exists": false }
+    """
+    if not tg_resolver:
+        return jsonify({'exists': False, 'error': 'RESOLVER_UNAVAILABLE'}), 500
+
+    if request.method == 'POST':
+        body = request.get_json(silent=True) or {}
+        raw_username = body.get('username') or request.args.get('username', '')
+    else:
+        raw_username = request.args.get('username', '')
+
+    if not raw_username:
+        return jsonify({
+            'exists': False,
+            'error': 'MISSING_USERNAME',
+            'message': 'Username query param or JSON field is required'
+        }), 400
+
+    res = tg_resolver.resolve(raw_username)
+
+    # Handle FLOOD_WAIT rate limiting
+    if res.get('error') == 'FLOOD_WAIT':
+        resp = make_response(jsonify(res), 429)
+        resp.headers['Retry-After'] = str(res.get('retry_after', 60))
+        return resp
+
+    # Handle server configuration state
+    if res.get('error') == 'NOT_CONFIGURED':
+        return jsonify(res), 503
+
+    return jsonify(res)
 
 
 # ================================================================
@@ -836,4 +904,4 @@ if __name__ == '__main__':
     print(f">> Middleware Active: Customer & Admin Request Separation & Auth Guard")
     print(f">> Shared Database: sompheareak.db (SQLite)")
     print("=" * 65)
-    app.run(host='0.0.0.0', port=port, debug=debug)
+    app.run(host='0.0.0.0', port=port, debug=debug, threaded=True)
